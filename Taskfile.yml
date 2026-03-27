@@ -1,0 +1,54 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Start backend and frontend in parallel
+    deps: [dev:backend, dev:frontend]
+
+  dev:backend:
+    desc: Start backend dev server
+    dir: packages/backend
+    cmd: bun --watch src/server.ts
+
+  dev:frontend:
+    desc: Start frontend dev server
+    dir: packages/frontend
+    cmd: pnpm dev
+
+  build:
+    desc: Build all packages
+    deps: [build:backend, build:frontend]
+
+  build:backend:
+    dir: packages/backend
+    cmd: bun build src/server.ts --outdir dist --target bun
+
+  build:frontend:
+    dir: packages/frontend
+    cmd: pnpm build
+
+  test:all:
+    desc: Run all tests
+    deps: [test:backend, test:frontend]
+
+  test:backend:
+    desc: Run backend tests
+    dir: packages/backend
+    cmd: bun test
+
+  test:frontend:
+    desc: Run frontend tests
+    dir: packages/frontend
+    cmd: pnpm test
+
+  lint:check:
+    desc: Lint all packages
+    deps: [lint:backend, lint:frontend]
+
+  lint:backend:
+    dir: packages/backend
+    cmd: bunx biome check src/ tests/
+
+  lint:frontend:
+    dir: packages/frontend
+    cmd: pnpm lint

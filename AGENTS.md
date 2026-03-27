@@ -1,0 +1,49 @@
+# AGENTS.md — OnCraft Remake
+
+## Purpose
+
+OnCraft Remake is a web tool for managing parallel Claude Code sessions across git workspaces. It provides a dashboard to orchestrate, monitor, and interact with multiple agentic coding sessions running in different worktrees.
+
+## Architecture
+
+| Layer | Stack | Location |
+|---|---|---|
+| Backend | Bun + Fastify | `packages/backend/` |
+| Frontend | Nuxt 4 SPA | `packages/frontend/` |
+| Monorepo | pnpm workspaces | root `pnpm-workspace.yaml` |
+
+## Operations
+
+All commands use [Task](https://taskfile.dev/) (see `Taskfile.yml`).
+
+| Command | What it does |
+|---|---|
+| `task dev` | Start backend + frontend dev servers in parallel |
+| `task build` | Build all packages |
+| `task test:all` | Run all tests (backend + frontend) |
+| `task lint:check` | Lint all packages |
+
+Package-scoped variants: `task dev:backend`, `task test:frontend`, etc.
+
+## Constraints
+
+1. **Bun runtime** for backend — NOT Node.js. Use `bun test`, `bun build`, `bunx`.
+2. **pnpm** for package management — no npm or yarn.
+3. **NuxtUI v3** for all UI components — no custom CSS, no Tailwind utilities outside NuxtUI.
+4. **Conventional commits** required on every commit.
+5. **Specs and plans** live under `.context/agents/spec/` — never under `docs/`.
+6. **No backward compatibility** unless explicitly instructed.
+
+## Key References
+
+- Design spec: `.context/agents/spec/oncraft-remake/design.md`
+- Implementation plan: `.context/agents/spec/oncraft-remake/plan.md`
+- Patterns index: `.context/agents/patterns/index.md`
+
+## Startup Protocol
+
+Every agent session must:
+
+1. Read this file (`AGENTS.md`)
+2. Read `.context/agents/patterns/index.md`
+3. Verify you are on the correct branch and working directory
