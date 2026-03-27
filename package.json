@@ -1,0 +1,10 @@
+{
+  "name": "oncraft-remake",
+  "private": true,
+  "scripts": {
+    "dev": "task dev",
+    "build": "task build",
+    "test": "task test:all",
+    "lint": "task lint:check"
+  }
+}
