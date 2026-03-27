@@ -1,0 +1,243 @@
+/**
+ * Session Bridge — Standalone Bun script that bridges stdin/stdout to the Claude Agent SDK.
+ *
+ * Spawned as a child process by ProcessManager.
+ * Receives JSON-line commands on stdin, emits JSON-line events on stdout.
+ */
+
+import { createInterface } from "node:readline";
+
+// --- Types ---
+
+interface StartCommand {
+	cmd: "start";
+	projectPath: string;
+	prompt: string;
+	sessionId?: string;
+	model?: string;
+	effort?: string;
+	permissionMode?: string;
+}
+
+interface ReplyCommand {
+	cmd: "reply";
+	toolUseID: string;
+	decision: "allow" | "deny";
+}
+
+interface InterruptCommand {
+	cmd: "interrupt";
+}
+
+interface StopCommand {
+	cmd: "stop";
+}
+
+interface LoadHistoryCommand {
+	cmd: "loadHistory";
+	sessionId: string;
+}
+
+type BridgeCommand =
+	| StartCommand
+	| ReplyCommand
+	| InterruptCommand
+	| StopCommand
+	| LoadHistoryCommand;
+
+// --- State ---
+
+let activeAbort: AbortController | null = null;
+const pendingApprovals = new Map<
+	string,
+	(result: { behavior: "allow" | "deny" }) => void
+>();
+
+// --- Helpers ---
+
+function emit(event: Record<string, unknown>): void {
+	process.stdout.write(`${JSON.stringify(event)}\n`);
+}
+
+// --- Message Stream ---
+
+/**
+ * AsyncIterable that feeds user messages into the SDK's query loop.
+ * New messages are enqueued here; the SDK consumes them as they arrive.
+ */
+class MessageStream
+	implements AsyncIterable<{ type: "user"; content: string }>
+{
+	private queue: Array<{ type: "user"; content: string }> = [];
+	private resolve: (() => void) | null = null;
+	private done = false;
+
+	enqueue(message: string): void {
+		this.queue.push({ type: "user", content: message });
+		this.resolve?.();
+		this.resolve = null;
+	}
+
+	end(): void {
+		this.done = true;
+		this.resolve?.();
+		this.resolve = null;
+	}
+
+	[Symbol.asyncIterator](): AsyncIterator<{
+		type: "user";
+		content: string;
+	}> {
+		return {
+			next: async () => {
+				while (this.queue.length === 0 && !this.done) {
+					await new Promise<void>((r) => {
+						this.resolve = r;
+					});
+				}
+				if (this.queue.length > 0) {
+					const value = this.queue.shift() as {
+						type: "user";
+						content: string;
+					};
+					return { value, done: false };
+				}
+				return { value: undefined as never, done: true };
+			},
+		};
+	}
+}
+
+let activeStream: MessageStream | null = null;
+
+// --- Command Handlers ---
+
+async function handleStart(cmd: StartCommand): Promise<void> {
+	// If there's already an active stream, enqueue the message as a follow-up
+	if (activeStream) {
+		activeStream.enqueue(cmd.prompt);
+		return;
+	}
+
+	// Dynamic import to avoid loading SDK at module level
+	const sdk = await import("@anthropic-ai/claude-agent-sdk");
+
+	activeStream = new MessageStream();
+	activeStream.enqueue(cmd.prompt);
+	activeAbort = new AbortController();
+
+	const options: Record<string, unknown> = {
+		cwd: cmd.projectPath,
+		abortController: activeAbort,
+		settingSources: ["user", "project", "local"],
+		model: cmd.model,
+		permissionMode: cmd.permissionMode,
+	};
+
+	if (cmd.sessionId) {
+		options.resume = cmd.sessionId;
+	}
+
+	try {
+		const result = sdk.query({
+			prompt: activeStream,
+			options,
+			canUseTool: async (
+				toolName: string,
+				toolInput: unknown,
+				toolOptions: {
+					toolUseID: string;
+					agentID?: string;
+					decisionReason?: string;
+				},
+			) => {
+				const toolUseID = toolOptions.toolUseID;
+				emit({
+					type: "tool_confirmation",
+					toolUseID,
+					toolName,
+					toolInput,
+					agentID: toolOptions.agentID,
+					decisionReason: toolOptions.decisionReason,
+				});
+				return new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
+					pendingApprovals.set(toolUseID, resolve);
+				});
+			},
+		});
+
+		for await (const message of result) {
+			emit(message as Record<string, unknown>);
+		}
+	} catch (err) {
+		if ((err as Error).name !== "AbortError") {
+			emit({ type: "bridge:error", message: String(err) });
+		}
+	} finally {
+		activeStream = null;
+		activeAbort = null;
+	}
+}
+
+function handleReply(cmd: ReplyCommand): void {
+	const resolve = pendingApprovals.get(cmd.toolUseID);
+	if (resolve) {
+		resolve({ behavior: cmd.decision });
+		pendingApprovals.delete(cmd.toolUseID);
+	}
+}
+
+function handleInterrupt(): void {
+	if (activeAbort) {
+		activeAbort.abort();
+	}
+	if (activeStream) {
+		activeStream.end();
+	}
+}
+
+async function handleLoadHistory(cmd: LoadHistoryCommand): Promise<void> {
+	try {
+		const sdk = await import("@anthropic-ai/claude-agent-sdk");
+		const messages = await sdk.getSessionMessages(cmd.sessionId);
+		emit({ type: "bridge:history", messages });
+	} catch (err) {
+		emit({
+			type: "bridge:error",
+			message: `Failed to load history: ${err}`,
+		});
+	}
+}
+
+// --- Main Loop ---
+
+emit({ type: "bridge:ready" });
+
+const rl = createInterface({ input: process.stdin });
+
+rl.on("line", async (line) => {
+	try {
+		const cmd = JSON.parse(line) as BridgeCommand;
+
+		switch (cmd.cmd) {
+			case "start":
+				handleStart(cmd);
+				break;
+			case "reply":
+				handleReply(cmd);
+				break;
+			case "interrupt":
+				handleInterrupt();
+				break;
+			case "loadHistory":
+				await handleLoadHistory(cmd);
+				break;
+			case "stop":
+				rl.close();
+				process.exit(0);
+				break;
+		}
+	} catch (err) {
+		emit({ type: "bridge:error", message: `Invalid command: ${err}` });
+	}
+});
