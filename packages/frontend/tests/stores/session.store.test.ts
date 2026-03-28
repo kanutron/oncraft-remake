@@ -10,10 +10,11 @@ import { useSessionStore } from '~/stores/session.store'
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     id: overrides.id ?? crypto.randomUUID(),
-    workspaceId: 'ws-1',
+    repositoryId: 'ws-1',
     claudeSessionId: null,
     name: 'test-session',
     sourceBranch: 'main',
+    workBranch: null,
     targetBranch: 'feat/test',
     worktreePath: null,
     state: 'idle',
@@ -37,8 +38,8 @@ describe('useSessionStore', () => {
   /* ── create ────────────────────────────────────────────────────── */
 
   describe('create()', () => {
-    it('adds a session and sets it active for the workspace', async () => {
-      const session = makeSession({ id: 'sess-1', workspaceId: 'ws-1' })
+    it('adds a session and sets it active for the repository', async () => {
+      const session = makeSession({ id: 'sess-1', repositoryId: 'ws-1' })
       vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce(session))
 
       const store = useSessionStore()
@@ -46,7 +47,6 @@ describe('useSessionStore', () => {
         name: 'test',
         sourceBranch: 'main',
         targetBranch: 'feat/test',
-        useWorktree: false,
       })
 
       expect(result).toEqual(session)
@@ -63,27 +63,26 @@ describe('useSessionStore', () => {
         name: 'my-session',
         sourceBranch: 'main',
         targetBranch: 'feat/work',
-        useWorktree: true,
       }
       await store.create('ws-42', opts)
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://test:3001/workspaces/ws-42/sessions',
+        'http://test:3001/repositories/ws-42/sessions',
         { method: 'POST', body: opts },
       )
     })
   })
 
-  /* ── fetchForWorkspace ─────────────────────────────────────────── */
+  /* ── fetchForRepository ────────────────────────────────────────── */
 
-  describe('fetchForWorkspace()', () => {
+  describe('fetchForRepository()', () => {
     it('populates sessions from the API', async () => {
-      const s1 = makeSession({ id: 'sess-1', workspaceId: 'ws-1' })
-      const s2 = makeSession({ id: 'sess-2', workspaceId: 'ws-1' })
+      const s1 = makeSession({ id: 'sess-1', repositoryId: 'ws-1' })
+      const s2 = makeSession({ id: 'sess-2', repositoryId: 'ws-1' })
       vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce([s1, s2]))
 
       const store = useSessionStore()
-      await store.fetchForWorkspace('ws-1')
+      await store.fetchForRepository('ws-1')
 
       expect(store.sessions.size).toBe(2)
       expect(store.sessions.get('sess-1')).toEqual(s1)
@@ -95,22 +94,22 @@ describe('useSessionStore', () => {
       vi.stubGlobal('$fetch', fetchMock)
 
       const store = useSessionStore()
-      await store.fetchForWorkspace('ws-7')
+      await store.fetchForRepository('ws-7')
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://test:3001/workspaces/ws-7/sessions',
+        'http://test:3001/repositories/ws-7/sessions',
       )
     })
 
     it('merges with existing sessions (does not clear others)', async () => {
-      const existing = makeSession({ id: 'sess-existing', workspaceId: 'ws-other' })
-      const fetched = makeSession({ id: 'sess-new', workspaceId: 'ws-1' })
+      const existing = makeSession({ id: 'sess-existing', repositoryId: 'ws-other' })
+      const fetched = makeSession({ id: 'sess-new', repositoryId: 'ws-1' })
       vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce([fetched]))
 
       const store = useSessionStore()
       store.sessions.set('sess-existing', existing)
 
-      await store.fetchForWorkspace('ws-1')
+      await store.fetchForRepository('ws-1')
 
       expect(store.sessions.size).toBe(2)
       expect(store.sessions.has('sess-existing')).toBe(true)
@@ -202,32 +201,32 @@ describe('useSessionStore', () => {
     })
   })
 
-  /* ── sessionsForWorkspace ──────────────────────────────────────── */
+  /* ── sessionsForRepository ─────────────────────────────────────── */
 
-  describe('sessionsForWorkspace()', () => {
-    it('filters sessions by workspaceId', () => {
+  describe('sessionsForRepository()', () => {
+    it('filters sessions by repositoryId', () => {
       const store = useSessionStore()
-      store.sessions.set('s1', makeSession({ id: 's1', workspaceId: 'ws-1' }))
-      store.sessions.set('s2', makeSession({ id: 's2', workspaceId: 'ws-2' }))
-      store.sessions.set('s3', makeSession({ id: 's3', workspaceId: 'ws-1' }))
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'ws-1' }))
+      store.sessions.set('s2', makeSession({ id: 's2', repositoryId: 'ws-2' }))
+      store.sessions.set('s3', makeSession({ id: 's3', repositoryId: 'ws-1' }))
 
-      const result = store.sessionsForWorkspace('ws-1')
+      const result = store.sessionsForRepository('ws-1')
       expect(result).toHaveLength(2)
       expect(result.map(s => s.id).sort()).toEqual(['s1', 's3'])
     })
 
-    it('returns empty array for unknown workspace', () => {
+    it('returns empty array for unknown repository', () => {
       const store = useSessionStore()
-      expect(store.sessionsForWorkspace('ws-unknown')).toEqual([])
+      expect(store.sessionsForRepository('ws-unknown')).toEqual([])
     })
 
     it('sorts by lastActivityAt descending (most recent first)', () => {
       const store = useSessionStore()
-      store.sessions.set('s1', makeSession({ id: 's1', workspaceId: 'ws-1', lastActivityAt: '2024-01-01T00:00:00Z' }))
-      store.sessions.set('s2', makeSession({ id: 's2', workspaceId: 'ws-1', lastActivityAt: '2025-06-01T00:00:00Z' }))
-      store.sessions.set('s3', makeSession({ id: 's3', workspaceId: 'ws-1', lastActivityAt: '2025-03-01T00:00:00Z' }))
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'ws-1', lastActivityAt: '2024-01-01T00:00:00Z' }))
+      store.sessions.set('s2', makeSession({ id: 's2', repositoryId: 'ws-1', lastActivityAt: '2025-06-01T00:00:00Z' }))
+      store.sessions.set('s3', makeSession({ id: 's3', repositoryId: 'ws-1', lastActivityAt: '2025-03-01T00:00:00Z' }))
 
-      const result = store.sessionsForWorkspace('ws-1')
+      const result = store.sessionsForRepository('ws-1')
       expect(result.map(s => s.id)).toEqual(['s2', 's3', 's1'])
     })
   })
@@ -253,13 +252,13 @@ describe('useSessionStore', () => {
   /* ── activeSessionId ───────────────────────────────────────────── */
 
   describe('activeSessionId()', () => {
-    it('returns the active session for a workspace', () => {
+    it('returns the active session for a repository', () => {
       const store = useSessionStore()
       store.setActive('ws-1', 'sess-5')
       expect(store.activeSessionId('ws-1')).toBe('sess-5')
     })
 
-    it('returns null when no session is active for the workspace', () => {
+    it('returns null when no session is active for the repository', () => {
       const store = useSessionStore()
       expect(store.activeSessionId('ws-unknown')).toBeNull()
     })
@@ -268,7 +267,7 @@ describe('useSessionStore', () => {
   /* ── setActive ─────────────────────────────────────────────────── */
 
   describe('setActive()', () => {
-    it('sets the active session for a workspace', () => {
+    it('sets the active session for a repository', () => {
       const store = useSessionStore()
       store.setActive('ws-1', 'sess-a')
       expect(store.activeSessionId('ws-1')).toBe('sess-a')
@@ -277,7 +276,7 @@ describe('useSessionStore', () => {
       expect(store.activeSessionId('ws-1')).toBe('sess-b')
     })
 
-    it('supports different active sessions per workspace', () => {
+    it('supports different active sessions per repository', () => {
       const store = useSessionStore()
       store.setActive('ws-1', 'sess-a')
       store.setActive('ws-2', 'sess-b')
