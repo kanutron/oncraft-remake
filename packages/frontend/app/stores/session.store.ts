@@ -4,15 +4,15 @@ export const useSessionStore = defineStore('session', () => {
   const config = useRuntimeConfig()
   const sessions = ref<Map<string, Session>>(new Map())
   const messages = ref<Map<string, ChatMessage[]>>(new Map())
-  const activeSessionByWorkspace = ref<Map<string, string>>(new Map())
+  const activeSessionByRepository = ref<Map<string, string>>(new Map())
 
-  function activeSessionId(workspaceId: string): string | null {
-    return activeSessionByWorkspace.value.get(workspaceId) ?? null
+  function activeSessionId(repositoryId: string): string | null {
+    return activeSessionByRepository.value.get(repositoryId) ?? null
   }
 
-  function sessionsForWorkspace(workspaceId: string): Session[] {
+  function sessionsForRepository(repositoryId: string): Session[] {
     return Array.from(sessions.value.values())
-      .filter(s => s.workspaceId === workspaceId)
+      .filter(s => s.repositoryId === repositoryId)
       .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
   }
 
@@ -20,20 +20,20 @@ export const useSessionStore = defineStore('session', () => {
     return messages.value.get(sessionId) ?? []
   }
 
-  async function fetchForWorkspace(workspaceId: string) {
-    const data = await $fetch<Session[]>(`${config.public.backendUrl}/workspaces/${workspaceId}/sessions`)
+  async function fetchForRepository(repositoryId: string) {
+    const data = await $fetch<Session[]>(`${config.public.backendUrl}/repositories/${repositoryId}/sessions`)
     for (const s of data) {
       sessions.value.set(s.id, s)
     }
   }
 
-  async function create(workspaceId: string, opts: { name: string; sourceBranch: string; workBranch?: string; targetBranch?: string }) {
-    const session = await $fetch<Session>(`${config.public.backendUrl}/workspaces/${workspaceId}/sessions`, {
+  async function create(repositoryId: string, opts: { name: string; sourceBranch: string; workBranch?: string; targetBranch?: string }) {
+    const session = await $fetch<Session>(`${config.public.backendUrl}/repositories/${repositoryId}/sessions`, {
       method: 'POST',
       body: opts,
     })
     sessions.value.set(session.id, session)
-    activeSessionByWorkspace.value.set(workspaceId, session.id)
+    activeSessionByRepository.value.set(repositoryId, session.id)
     return session
   }
 
@@ -55,8 +55,8 @@ export const useSessionStore = defineStore('session', () => {
     await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/interrupt`, { method: 'POST' })
   }
 
-  function setActive(workspaceId: string, sessionId: string) {
-    activeSessionByWorkspace.value.set(workspaceId, sessionId)
+  function setActive(repositoryId: string, sessionId: string) {
+    activeSessionByRepository.value.set(repositoryId, sessionId)
   }
 
   function appendMessage(sessionId: string, raw: Record<string, unknown>) {
@@ -79,9 +79,9 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   return {
-    sessions, messages, activeSessionByWorkspace,
-    activeSessionId, sessionsForWorkspace, messagesForSession,
-    fetchForWorkspace, create, send, reply, interrupt, setActive,
+    sessions, messages, activeSessionByRepository,
+    activeSessionId, sessionsForRepository, messagesForSession,
+    fetchForRepository, create, send, reply, interrupt, setActive,
     appendMessage, updateState,
   }
 })

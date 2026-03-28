@@ -1,7 +1,7 @@
 // Mirror backend types — keep in sync manually for now
 // (shared package is a future optimization)
 
-export interface Workspace {
+export interface Repository {
   id: string
   path: string
   name: string
@@ -12,7 +12,7 @@ export interface Workspace {
 
 export interface Session {
   id: string
-  workspaceId: string
+  repositoryId: string
   claudeSessionId: string | null
   name: string
   sourceBranch: string

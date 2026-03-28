@@ -40,7 +40,7 @@ export function useWebSocket() {
       case 'session:message':
         if (sessionId) sessionStore.appendMessage(sessionId, msg)
         break
-      case 'session:state':
+      case 'session:state-changed':
         if (sessionId) {
           const to = msg.to as string
           sessionStore.updateState(sessionId, to as SessionState)
