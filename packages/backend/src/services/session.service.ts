@@ -166,8 +166,7 @@ export class SessionService {
 		}
 
 		const repo = this.store.getRepository(session.repositoryId);
-		if (!repo)
-			throw new Error(`Repository not found: ${session.repositoryId}`);
+		if (!repo) throw new Error(`Repository not found: ${session.repositoryId}`);
 
 		const cwd = session.worktreePath ?? repo.path;
 
@@ -246,10 +245,7 @@ export class SessionService {
 			const repo = this.store.getRepository(session.repositoryId);
 			if (repo) {
 				try {
-					await this.gitService.removeWorktree(
-						repo.path,
-						session.worktreePath,
-					);
+					await this.gitService.removeWorktree(repo.path, session.worktreePath);
 				} catch {
 					/* worktree may already be gone */
 				}

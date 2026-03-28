@@ -4,12 +4,12 @@ import { EventBus } from "../../src/infra/event-bus";
 import { GitWatcher } from "../../src/infra/git-watcher";
 import { Store } from "../../src/infra/store";
 import { registerGitRoutes } from "../../src/routes/git.routes";
-import { registerSessionRoutes } from "../../src/routes/session.routes";
 import { registerRepositoryRoutes } from "../../src/routes/repository.routes";
+import { registerSessionRoutes } from "../../src/routes/session.routes";
 import { GitService } from "../../src/services/git.service";
 import { ProcessManager } from "../../src/services/process-manager";
-import { SessionService } from "../../src/services/session.service";
 import { RepositoryService } from "../../src/services/repository.service";
+import { SessionService } from "../../src/services/session.service";
 
 export async function buildApp() {
 	const dbPath = `/tmp/oncraft-route-test-${Date.now()}.db`;
@@ -18,7 +18,11 @@ export async function buildApp() {
 	const gitService = new GitService();
 	const gitWatcher = new GitWatcher(eventBus, gitService);
 	const processManager = new ProcessManager(eventBus);
-	const repositoryService = new RepositoryService(store, gitService, gitWatcher);
+	const repositoryService = new RepositoryService(
+		store,
+		gitService,
+		gitWatcher,
+	);
 	const sessionService = new SessionService(
 		store,
 		eventBus,

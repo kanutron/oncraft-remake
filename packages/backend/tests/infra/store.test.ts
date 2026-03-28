@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { Store } from "../../src/infra/store";
-import { makeSession, makeRepository } from "../helpers/fixtures";
+import { makeRepository, makeSession } from "../helpers/fixtures";
 
 let store: Store;
 const DB_PATH = "/tmp/oncraft-test.db";

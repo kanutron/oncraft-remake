@@ -1,6 +1,8 @@
-import type { Session, Repository } from "../../src/types";
+import type { Repository, Session } from "../../src/types";
 
-export function makeRepository(overrides: Partial<Repository> = {}): Repository {
+export function makeRepository(
+	overrides: Partial<Repository> = {},
+): Repository {
 	return {
 		id: crypto.randomUUID(),
 		path: "/tmp/test-repo",

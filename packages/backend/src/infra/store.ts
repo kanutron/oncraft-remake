@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { Session, SessionState, Repository, Project } from "../types";
+import type { Project, Repository, Session, SessionState } from "../types";
 
 export class Store {
 	private db: Database;

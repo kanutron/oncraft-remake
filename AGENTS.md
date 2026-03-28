@@ -2,7 +2,9 @@
 
 ## Purpose
 
-OnCraft Remake is a web tool for managing parallel Claude Code sessions across git workspaces. It provides a dashboard to orchestrate, monitor, and interact with multiple agentic coding sessions running in different worktrees.
+OnCraft Remake is a web tool for managing parallel Claude Code sessions across git repositories. It provides a dashboard to orchestrate, monitor, and interact with multiple agentic coding sessions running in different worktrees.
+
+The domain model is: **Project > Repository > Session**.
 
 ## Architecture
 

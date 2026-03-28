@@ -1,6 +1,8 @@
 # OnCraft Remake — Design Specification
 
 > A web-based tool for managing parallel Claude Code sessions across git repositories, with explicit git context per session and transparent SDK passthrough.
+>
+> **Note:** The domain model was updated from `Workspace > Session` to `Project > Repository > Session` via the terminology rename spec (`.context/agents/spec/terminology-rename/design.md`). All "workspace" references below have been updated to "repository" accordingly. The word "workspace" is retained only where it refers to external concepts (pnpm workspaces, git worktrees as workspaces, VS Code workspaces).
 
 ## Problem Statement
 
@@ -33,7 +35,7 @@ Frontend (Nuxt SPA)  ──HTTP/WS──▶  Backend (Fastify)
                               │        │        │
                     ┌─────────┤    ┌───┤    ┌───┤
                     │         │    │   │    │   │
-              Workspace  Session  Git │  Event │  Process  Store  GitWatcher
+              Repository Session  Git │  Event │  Process  Store  GitWatcher
               Service   Service  Svc  │  Bus   │  Manager
                                       │        │
                                       │   session-bridge.ts
@@ -44,15 +46,17 @@ Frontend (Nuxt SPA)  ──HTTP/WS──▶  Backend (Fastify)
 
 ### Communication
 
-- **REST API** for CRUD operations (workspaces, sessions, git actions)
+- **REST API** for CRUD operations (repositories, sessions, git actions)
 - **WebSocket** (single multiplexed connection) for streaming events (Claude responses, git state changes, session state transitions)
 - Both REST and WebSocket available for session commands (send, reply, interrupt) — REST for programmatic use, WebSocket for real-time UI interactions
 
 ## Domain Model
 
-### Workspace
+The domain model is **Project > Repository > Session**.
 
-A workspace is a live view of a git repository.
+### Repository
+
+A repository is OnCraft's enriched representation of a git repo — wraps a git repository path with orchestration state.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -60,17 +64,17 @@ A workspace is a live view of a git repository.
 | `path` | string | Absolute path to repo root (main worktree) |
 | `name` | string | Display name (defaults to directory name) |
 | `branch` | string | Current branch of main worktree (read live via `GitService.getBranch()` on every `GET` request; also kept in sync by GitWatcher events on the main worktree path — not persisted in SQLite) |
-| `createdAt` | ISO timestamp | When workspace was first opened |
-| `lastOpenedAt` | ISO timestamp | Last time workspace was activated |
+| `createdAt` | ISO timestamp | When repository was first opened |
+| `lastOpenedAt` | ISO timestamp | Last time repository was activated |
 
 ### Session
 
-A session is a Claude Code conversation bound to a specific git context within a workspace.
+A session is a Claude Code conversation bound to a specific git context within a repository.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string (UUID) | Our internal ID |
-| `workspaceId` | string | Parent workspace |
+| `repositoryId` | string | Parent repository |
 | `claudeSessionId` | string \| null | SDK's session ID (null until first query) |
 | `name` | string | User-assigned or auto-generated |
 | `sourceBranch` | string | Branch this session works on (e.g., `feat/auth`) |
@@ -94,8 +98,8 @@ A session is a Claude Code conversation bound to a specific git context within a
 
 ### Relationships
 
-- Workspace has many Sessions (1:N)
-- Session belongs to exactly one Workspace
+- Repository has many Sessions (1:N)
+- Session belongs to exactly one Repository
 - Session may have its own worktree or share the main worktree
 
 ## Backend Architecture
@@ -114,14 +118,14 @@ A session is a Claude Code conversation bound to a specific git context within a
 
 ### Service Layer
 
-**WorkspaceService**
+**RepositoryService**
 - `open(path)` — validates git repo, creates record, starts GitWatcher for main worktree
 - `close(id)` — stops watcher, optionally cleans orphaned worktrees
 - `list()`, `get(id)` — CRUD
-- Workspace branch is always read live from git
+- Repository branch is always read live from git
 
 **SessionService**
-- `create(workspaceId, { name, sourceBranch, targetBranch, useWorktree })` — creates record, optionally creates git worktree via GitService
+- `create(repositoryId, { name, sourceBranch, targetBranch, useWorktree })` — creates record, optionally creates git worktree via GitService
 - `send(sessionId, message, options?)` — spawns or reuses Claude SDK process, streams response via EventBus
 - `interrupt(sessionId)` — stops current query, keeps process alive
 - `stop(sessionId)` — kills SDK process, session goes idle
@@ -155,17 +159,17 @@ A session is a Claude Code conversation bound to a specific git context within a
 - Internal pub/sub with path-based topics
 - GitWatcher emits events by filesystem path (no domain knowledge)
 - Services subscribe to paths they care about and correlate to their domain entities
-- WebSocket handler subscribes and enriches events with workspaceId/sessionId before forwarding to frontend
+- WebSocket handler subscribes and enriches events with repositoryId/sessionId before forwarding to frontend
 
 **GitWatcher**
-- Per-workspace filesystem watcher (chokidar)
+- Per-repository filesystem watcher (chokidar)
 - Watches `.git/HEAD` and `.git/refs/` in main worktree and all session worktrees
 - On change: reads current branch, compares to previous, emits `git:branch-changed` on EventBus
 - Polling fallback for operations that don't trigger fs events (rebases, etc.)
-- Has zero knowledge of sessions or workspaces — purely path-based
+- Has zero knowledge of sessions or repositories — purely path-based
 
 **Store (SQLite)**
-- `workspaces` table: id, path, name, createdAt, lastOpenedAt
+- `repositories` table: id, path, name, createdAt, lastOpenedAt
 - `sessions` table: all session fields from domain model
 - No message storage — messages are in-memory during session and in SDK's own history (`~/.claude/sessions/`)
 
@@ -209,7 +213,7 @@ The bridge internally implements a `MessageStream` — an `AsyncIterable<SDKUser
 The SDK also exposes `unstable_v2_createSession()` and `unstable_v2_resumeSession()` functions that return session objects with `.send()` / `.stream()` methods. This maps closely to our session lifecycle. While marked as unstable, it simplifies multi-turn management. The bridge should start with the V1 `query()` + `AsyncIterable<SDKUserMessage>` approach and migrate to V2 when it stabilizes.
 
 **Settings passthrough:**
-- Process spawned with `cwd` set to session's worktree path (or workspace path)
+- Process spawned with `cwd` set to session's worktree path (or repository path)
 - Bridge must explicitly pass `settingSources: ['user', 'project', 'local']` when creating the SDK session — without this, the SDK does **not** load filesystem settings by default
 - Environment variables include user's Claude API keys from `~/.claude/settings.json`
 - With `settingSources` configured, the SDK loads CLAUDE.md, `.claude/settings.json`, MCP servers, and plugins from both user home and project directory
@@ -244,7 +248,7 @@ Process stays alive between queries to avoid re-initialization overhead. Only ki
 GitWatcher detects .git/HEAD change at path X
     │
     ▼
-EventBus emit: { event: "git:branch-changed", path: X, from: "feat/auth", to: "dev" }
+EventBus emit: { event: "repository:git-changed", path: X, from: "feat/auth", to: "dev" }
     │
     ├──▶ SessionService (subscribed to paths of its sessions)
     │       │
@@ -254,31 +258,31 @@ EventBus emit: { event: "git:branch-changed", path: X, from: "feat/auth", to: "d
     │       └── If session is idle: flag mismatch, prepend system message
     │           to next user message
     │
-    ├──▶ WorkspaceService (subscribed to main worktree path)
-    │       └── Update workspace state, notify sessions with matching targetBranch
+    ├──▶ RepositoryService (subscribed to main worktree path)
+    │       └── Update repository state, notify sessions with matching targetBranch
     │
-    └──▶ WebSocket handler → enriches with sessionId/workspaceId → frontend
+    └──▶ WebSocket handler → enriches with sessionId/repositoryId → frontend
 ```
 
 ## API Surface
 
 ### REST Endpoints
 
-**Workspaces**
+**Repositories**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/workspaces` | List all workspaces |
-| `POST` | `/workspaces` | Open repo as workspace `{ path, name? }` |
-| `GET` | `/workspaces/:id` | Get workspace (includes live git branch) |
-| `DELETE` | `/workspaces/:id` | Close workspace |
+| `GET` | `/repositories` | List all repositories |
+| `POST` | `/repositories` | Open repo as repository `{ path, name? }` |
+| `GET` | `/repositories/:id` | Get repository (includes live git branch) |
+| `DELETE` | `/repositories/:id` | Close repository |
 
 **Sessions**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/workspaces/:id/sessions` | List sessions for workspace |
-| `POST` | `/workspaces/:id/sessions` | Create session `{ name, sourceBranch, targetBranch, useWorktree }` |
+| `GET` | `/repositories/:id/sessions` | List sessions for repository |
+| `POST` | `/repositories/:id/sessions` | Create session `{ name, sourceBranch, targetBranch, useWorktree }` |
 | `GET` | `/sessions/:id` | Get session |
 | `PATCH` | `/sessions/:id` | Update metadata (name, targetBranch) |
 | `DELETE` | `/sessions/:id` | Destroy session |
@@ -288,23 +292,23 @@ EventBus emit: { event: "git:branch-changed", path: X, from: "feat/auth", to: "d
 | `POST` | `/sessions/:id/stop` | Stop session process |
 | `POST` | `/sessions/:id/resume` | Resume session |
 | `GET` | `/sessions/:id/history` | Load message history via SDK's `getSessionMessages()` — returns `SDKMessage[]` |
-| `GET` | `/workspaces/:id/claude-sessions` | List SDK sessions for this workspace path via `listSessions({ cwd })` — useful for importing/resuming prior Claude sessions |
+| `GET` | `/repositories/:id/claude-sessions` | List SDK sessions for this repository path via `listSessions({ cwd })` — useful for importing/resuming prior Claude sessions |
 
 **Git**
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/workspaces/:id/git/status` | Status of main worktree |
-| `GET` | `/workspaces/:id/git/branches` | List branches + ahead/behind |
-| `GET` | `/workspaces/:id/git/worktrees` | List all worktrees |
-| `POST` | `/workspaces/:id/git/checkout` | Checkout branch `{ branch, path? }` |
-| `POST` | `/workspaces/:id/git/branch` | Create branch `{ name, from? }` |
-| `POST` | `/workspaces/:id/git/merge` | Merge `{ source, target }` |
-| `POST` | `/workspaces/:id/git/rebase` | Rebase `{ branch, onto }` |
+| `GET` | `/repositories/:id/git/status` | Status of main worktree |
+| `GET` | `/repositories/:id/git/branches` | List branches + ahead/behind |
+| `GET` | `/repositories/:id/git/worktrees` | List all worktrees |
+| `POST` | `/repositories/:id/git/checkout` | Checkout branch `{ branch, path? }` |
+| `POST` | `/repositories/:id/git/branch` | Create branch `{ name, from? }` |
+| `POST` | `/repositories/:id/git/merge` | Merge `{ source, target }` |
+| `POST` | `/repositories/:id/git/rebase` | Rebase `{ branch, onto }` |
 
 ### WebSocket Protocol
 
-Single multiplexed connection at `/ws`. Events carry `sessionId` or `workspaceId` for routing.
+Single multiplexed connection at `/ws`. Events carry `sessionId` or `repositoryId` for routing.
 
 **Server → Client:**
 
@@ -322,7 +326,7 @@ Single multiplexed connection at `/ws`. Events carry `sessionId` or `workspaceId
 { "event": "session:tool-confirmation", "sessionId": "...", "data": { "toolUseID": "...", "toolName": "Edit", "toolInput": {}, "agentID": "...", "decisionReason": "..." } }
 
 // Git state change (enriched with domain context)
-{ "event": "git:branch-changed", "workspaceId": "...", "sessionId": "...", "data": { "path": "...", "from": "feat/auth", "to": "dev", "expected": "feat/auth" } }
+{ "event": "repository:git-changed", "repositoryId": "...", "sessionId": "...", "data": { "path": "...", "from": "feat/auth", "to": "dev", "expected": "feat/auth" } }
 ```
 
 **Client → Server:**
@@ -359,12 +363,12 @@ Single multiplexed connection at `/ws`. Events carry `sessionId` or `workspaceId
 
 ### WebSocket Disconnection
 - Frontend auto-reconnects with exponential backoff (1s, 2s, 4s, max 30s)
-- On reconnect, frontend fetches current state via REST (`GET /workspaces`, `GET /sessions`) to reconcile any missed events
+- On reconnect, frontend fetches current state via REST (`GET /repositories`, `GET /sessions`) to reconcile any missed events
 - Messages sent during an active query that were missed are not replayed — the frontend re-subscribes and picks up from the current point. In-memory message history may have gaps; this is acceptable for iteration 1.
 
 ### Validation
-- `POST /workspaces` validates: path exists, is a directory, contains `.git/`
-- `POST /sessions` validates: workspace exists, sourceBranch and targetBranch are non-empty
+- `POST /repositories` validates: path exists, is a directory, contains `.git/`
+- `POST /sessions` validates: repository exists, sourceBranch and targetBranch are non-empty
 - `POST /sessions/:id/send` validates: session exists, session is not in `completed` or `error` state
 
 ## Frontend Architecture
@@ -383,9 +387,9 @@ Single multiplexed connection at `/ws`. Events carry `sessionId` or `workspaceId
 ### Layout
 
 ```
-WorkspaceTabBar         — top-level repo tabs (like VSCode window tabs)
-└── WorkspaceView       — container for one workspace
-    └── SessionTabBar   — session tabs within workspace (like VSCode editor tabs)
+RepositoryTabBar        — top-level repo tabs (like VSCode window tabs)
+└── RepositoryView      — container for one repository
+    └── SessionTabBar   — session tabs within repository (like VSCode editor tabs)
         └── SessionView — container: header + chat + prompt
             ├── SessionHeader    — branch info (source → target), state, metrics
             ├── ChatHistory      — scrollable message list
@@ -443,8 +447,8 @@ Tool approval (`session:tool-confirmation`) is not an SDK message type — it's 
 
 ### State Management (Pinia)
 
-**`useWorkspaceStore`** — workspace CRUD, active workspace tracking
-**`useSessionStore`** — session CRUD, in-memory message history (Map<sessionId, ChatMessage[]>), active session per workspace
+**`useRepositoryStore`** — repository CRUD, active repository tracking
+**`useSessionStore`** — session CRUD, in-memory message history (Map<sessionId, ChatMessage[]>), active session per repository
 **`useGitStore`** (iteration 2) — branch/worktree state, git actions
 
 ### WebSocket Client
@@ -458,7 +462,7 @@ Composable `useWebSocket()`:
 ### PromptBox Behavior
 
 - `Enter` to send, `Shift+Enter` for newline, `Esc` to interrupt
-- Model/effort selectors with last-used memory per workspace
+- Model/effort selectors with last-used memory per repository
 - State-aware: disabled during tool approval, shows "Interrupt" during active query
 
 ## Project Structure
@@ -470,11 +474,11 @@ oncraft/
 │   │   ├── src/
 │   │   │   ├── server.ts
 │   │   │   ├── services/
-│   │   │   │   ├── workspace.service.ts
+│   │   │   │   ├── repository.service.ts
 │   │   │   │   ├── session.service.ts
 │   │   │   │   └── git.service.ts
 │   │   │   ├── routes/
-│   │   │   │   ├── workspace.routes.ts
+│   │   │   │   ├── repository.routes.ts
 │   │   │   │   ├── session.routes.ts
 │   │   │   │   ├── git.routes.ts
 │   │   │   │   └── ws.routes.ts
@@ -492,7 +496,7 @@ oncraft/
 │   └── frontend/
 │       ├── app/
 │       │   ├── components/
-│       │   │   ├── workspace/
+│       │   │   ├── repository/
 │       │   │   ├── session/
 │       │   │   ├── chat/
 │       │   │   ├── prompt/
@@ -523,7 +527,7 @@ The architecture supports multiple deployment scenarios without structural chang
 
 | Iteration | Scope |
 |-----------|-------|
-| **1** | Backend: SessionService + GitService + ProcessManager + session-bridge. Frontend: workspace tabs, session tabs, chat rendering, prompt box. Full Claude Code session lifecycle with git context. |
+| **1** | Backend: SessionService + GitService + ProcessManager + session-bridge. Frontend: repository tabs, session tabs, chat rendering, prompt box. Full Claude Code session lifecycle with git context. |
 | **2** | Git UI panel: branch visualization, worktree management, checkout/merge/rebase from UI. GitWatcher state change notifications. |
 | **3** | Overall layout refinement (UDashboardGroup, UPane), multi-session UX polish, session metadata management. |
 | **4** | Workflow layer: kanban board, session state transitions, triggers, flow configuration. |

@@ -58,13 +58,7 @@ export class GitService {
 			]);
 		} else {
 			// Branch doesn't exist — create from startPoint (or HEAD)
-			const args = [
-				"worktree",
-				"add",
-				"-b",
-				branch,
-				worktreePath,
-			];
+			const args = ["worktree", "add", "-b", branch, worktreePath];
 			if (startPoint) args.push(startPoint);
 			await this.gitFor(repoPath).raw(args);
 		}

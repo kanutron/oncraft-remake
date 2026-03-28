@@ -100,8 +100,8 @@ class MessageStream implements AsyncIterable<SDKUserMessage> {
 						this.resolve = r;
 					});
 				}
-				if (this.queue.length > 0) {
-					const value = this.queue.shift()!;
+				const value = this.queue.shift();
+				if (value !== undefined) {
 					return { value, done: false };
 				}
 				return { value: undefined as never, done: true };

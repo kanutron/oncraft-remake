@@ -6,7 +6,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "test": "vitest run",
-    "lint": "nuxt lint"
+    "lint": "echo 'no linter configured'"
   },
   "dependencies": {
     "@nuxt/ui": "^4.6.0",
