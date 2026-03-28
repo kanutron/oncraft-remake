@@ -65,15 +65,23 @@ function emit(event: Record<string, unknown>): void {
  * AsyncIterable that feeds user messages into the SDK's query loop.
  * New messages are enqueued here; the SDK consumes them as they arrive.
  */
-class MessageStream
-	implements AsyncIterable<{ type: "user"; content: string }>
-{
-	private queue: Array<{ type: "user"; content: string }> = [];
+interface SDKUserMessage {
+	type: "user";
+	message: { role: "user"; content: string };
+	parent_tool_use_id: string | null;
+}
+
+class MessageStream implements AsyncIterable<SDKUserMessage> {
+	private queue: SDKUserMessage[] = [];
 	private resolve: (() => void) | null = null;
 	private done = false;
 
 	enqueue(message: string): void {
-		this.queue.push({ type: "user", content: message });
+		this.queue.push({
+			type: "user",
+			message: { role: "user", content: message },
+			parent_tool_use_id: null,
+		});
 		this.resolve?.();
 		this.resolve = null;
 	}
@@ -84,10 +92,7 @@ class MessageStream
 		this.resolve = null;
 	}
 
-	[Symbol.asyncIterator](): AsyncIterator<{
-		type: "user";
-		content: string;
-	}> {
+	[Symbol.asyncIterator](): AsyncIterator<SDKUserMessage> {
 		return {
 			next: async () => {
 				while (this.queue.length === 0 && !this.done) {
@@ -96,10 +101,7 @@ class MessageStream
 					});
 				}
 				if (this.queue.length > 0) {
-					const value = this.queue.shift() as {
-						type: "user";
-						content: string;
-					};
+					const value = this.queue.shift()!;
 					return { value, done: false };
 				}
 				return { value: undefined as never, done: true };
@@ -132,6 +134,28 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		settingSources: ["user", "project", "local"],
 		model: cmd.model,
 		permissionMode: cmd.permissionMode,
+		canUseTool: async (
+			toolName: string,
+			toolInput: unknown,
+			toolOptions: {
+				toolUseID: string;
+				agentID?: string;
+				decisionReason?: string;
+			},
+		) => {
+			const toolUseID = toolOptions.toolUseID;
+			emit({
+				type: "tool_confirmation",
+				toolUseID,
+				toolName,
+				toolInput,
+				agentID: toolOptions.agentID,
+				decisionReason: toolOptions.decisionReason,
+			});
+			return new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
+				pendingApprovals.set(toolUseID, resolve);
+			});
+		},
 	};
 
 	if (cmd.sessionId) {
@@ -142,28 +166,6 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		const result = sdk.query({
 			prompt: activeStream,
 			options,
-			canUseTool: async (
-				toolName: string,
-				toolInput: unknown,
-				toolOptions: {
-					toolUseID: string;
-					agentID?: string;
-					decisionReason?: string;
-				},
-			) => {
-				const toolUseID = toolOptions.toolUseID;
-				emit({
-					type: "tool_confirmation",
-					toolUseID,
-					toolName,
-					toolInput,
-					agentID: toolOptions.agentID,
-					decisionReason: toolOptions.decisionReason,
-				});
-				return new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
-					pendingApprovals.set(toolUseID, resolve);
-				});
-			},
 		});
 
 		for await (const message of result) {
