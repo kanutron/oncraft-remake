@@ -14,6 +14,8 @@ const stateColor: Record<SessionState, 'neutral' | 'info' | 'success' | 'warning
   completed: 'secondary',
 }
 
+const hasWorktree = computed(() => !!props.session.worktreePath)
+
 const costDisplay = computed(() => {
   const cost = props.session.costUsd
   if (cost === 0) return '$0.00'
@@ -36,9 +38,15 @@ const tokenDisplay = computed(() => {
       <span class="text-sm font-mono truncate text-neutral-600 dark:text-neutral-400">
         {{ session.sourceBranch }}
       </span>
-      <span class="text-neutral-400 dark:text-neutral-500">
-        &rarr;
-      </span>
+
+      <template v-if="session.workBranch">
+        <span class="text-neutral-400 dark:text-neutral-500">&rarr;</span>
+        <span class="text-sm font-mono truncate text-neutral-700 dark:text-neutral-300 font-semibold">
+          {{ session.workBranch }}
+        </span>
+      </template>
+
+      <span class="text-neutral-400 dark:text-neutral-500">&rarr;</span>
       <span class="text-sm font-mono truncate text-neutral-600 dark:text-neutral-400">
         {{ session.targetBranch }}
       </span>
@@ -50,6 +58,16 @@ const tokenDisplay = computed(() => {
       variant="subtle"
       size="xs"
     />
+
+    <UTooltip v-if="hasWorktree" text="Isolated worktree">
+      <UBadge
+        label="worktree"
+        color="info"
+        variant="subtle"
+        size="xs"
+        icon="i-lucide-folder-tree"
+      />
+    </UTooltip>
 
     <div class="flex-1" />
 

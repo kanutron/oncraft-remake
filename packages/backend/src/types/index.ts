@@ -12,6 +12,7 @@ export interface Session {
 	claudeSessionId: string | null;
 	name: string;
 	sourceBranch: string;
+	workBranch: string | null;
 	targetBranch: string;
 	worktreePath: string | null;
 	state: SessionState;

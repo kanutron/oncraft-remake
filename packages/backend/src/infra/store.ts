@@ -27,6 +27,7 @@ export class Store {
 				claudeSessionId TEXT,
 				name TEXT NOT NULL,
 				sourceBranch TEXT NOT NULL,
+				workBranch TEXT,
 				targetBranch TEXT NOT NULL,
 				worktreePath TEXT,
 				state TEXT NOT NULL DEFAULT 'idle',
@@ -38,6 +39,12 @@ export class Store {
 				FOREIGN KEY (workspaceId) REFERENCES workspaces(id)
 			)
 		`);
+		// Migration: add workBranch column if missing
+		try {
+			this.db.exec("ALTER TABLE sessions ADD COLUMN workBranch TEXT");
+		} catch {
+			// Column already exists
+		}
 	}
 
 	// --- Workspaces ---
@@ -77,9 +84,9 @@ export class Store {
 	createSession(s: Session): void {
 		this.db
 			.prepare(
-				`INSERT INTO sessions (id, workspaceId, claudeSessionId, name, sourceBranch, targetBranch,
+				`INSERT INTO sessions (id, workspaceId, claudeSessionId, name, sourceBranch, workBranch, targetBranch,
 				worktreePath, state, createdAt, lastActivityAt, costUsd, inputTokens, outputTokens)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				s.id,
@@ -87,6 +94,7 @@ export class Store {
 				s.claudeSessionId,
 				s.name,
 				s.sourceBranch,
+				s.workBranch,
 				s.targetBranch,
 				s.worktreePath,
 				s.state,

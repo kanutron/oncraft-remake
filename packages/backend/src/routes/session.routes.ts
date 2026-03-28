@@ -7,15 +7,15 @@ export function registerSessionRoutes(
 ): void {
 	app.post("/workspaces/:workspaceId/sessions", async (request, reply) => {
 		const { workspaceId } = request.params as { workspaceId: string };
-		const { name, sourceBranch, targetBranch, useWorktree } = request.body as {
+		const { name, sourceBranch, workBranch, targetBranch } = request.body as {
 			name: string;
 			sourceBranch: string;
-			targetBranch: string;
-			useWorktree: boolean;
+			workBranch?: string;
+			targetBranch?: string;
 		};
-		if (!sourceBranch || !targetBranch) {
+		if (!sourceBranch) {
 			return reply.status(400).send({
-				error: "sourceBranch and targetBranch are required",
+				error: "sourceBranch is required",
 				code: "VALIDATION",
 			});
 		}
@@ -23,8 +23,8 @@ export function registerSessionRoutes(
 			return await sessionService.create(workspaceId, {
 				name,
 				sourceBranch,
+				workBranch,
 				targetBranch,
-				useWorktree,
 			});
 		} catch (err) {
 			return reply

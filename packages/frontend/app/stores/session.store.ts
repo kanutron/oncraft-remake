@@ -27,7 +27,7 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  async function create(workspaceId: string, opts: { name: string; sourceBranch: string; targetBranch: string; useWorktree: boolean }) {
+  async function create(workspaceId: string, opts: { name: string; sourceBranch: string; workBranch?: string; targetBranch?: string }) {
     const session = await $fetch<Session>(`${config.public.backendUrl}/workspaces/${workspaceId}/sessions`, {
       method: 'POST',
       body: opts,

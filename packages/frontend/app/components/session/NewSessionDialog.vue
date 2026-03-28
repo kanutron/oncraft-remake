@@ -13,13 +13,20 @@ const sessionStore = useSessionStore()
 
 const name = ref('')
 const sourceBranch = ref('')
-const targetBranch = ref('main')
-const useWorktree = ref(true)
+const targetBranch = ref('')
+const workIsolated = ref(false)
+const workBranch = ref('')
 const loading = ref(false)
 const error = ref('')
 
+const isValid = computed(() => {
+  if (!name.value.trim() || !sourceBranch.value.trim()) return false
+  if (workIsolated.value && !workBranch.value.trim()) return false
+  return true
+})
+
 async function submit() {
-  if (!name.value.trim() || !sourceBranch.value.trim() || !targetBranch.value.trim()) return
+  if (!isValid.value) return
 
   loading.value = true
   error.value = ''
@@ -27,13 +34,14 @@ async function submit() {
     await sessionStore.create(props.workspaceId, {
       name: name.value.trim(),
       sourceBranch: sourceBranch.value.trim(),
-      targetBranch: targetBranch.value.trim(),
-      useWorktree: useWorktree.value,
+      workBranch: workIsolated.value ? workBranch.value.trim() : undefined,
+      targetBranch: targetBranch.value.trim() || undefined,
     })
     name.value = ''
     sourceBranch.value = ''
-    targetBranch.value = 'main'
-    useWorktree.value = true
+    targetBranch.value = ''
+    workIsolated.value = false
+    workBranch.value = ''
     open.value = false
     emit('close')
   } catch (err: unknown) {
@@ -60,6 +68,7 @@ async function submit() {
           :title="error"
           icon="i-lucide-alert-circle"
         />
+
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Session name</label>
           <UInput
@@ -75,27 +84,48 @@ async function submit() {
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Source branch</label>
           <UInput
             v-model="sourceBranch"
-            placeholder="feat/my-feature"
+            placeholder="main"
             icon="i-lucide-git-branch"
             required
           />
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Starting point for this session (HEAD)</span>
         </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Target branch</label>
           <UInput
             v-model="targetBranch"
-            placeholder="main"
+            :placeholder="sourceBranch || 'defaults to source'"
             icon="i-lucide-git-merge"
-            required
           />
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to</span>
         </div>
 
         <USwitch
-          v-model="useWorktree"
-          label="Use worktree"
-          description="Create an isolated git worktree for this session."
+          v-model="workIsolated"
+          label="Work isolated"
+          description="Create a dedicated worktree with its own branch."
         />
+
+        <template v-if="workIsolated">
+          <div class="flex flex-col gap-1">
+            <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch</label>
+            <UInput
+              v-model="workBranch"
+              placeholder="feat/my-feature"
+              icon="i-lucide-git-fork"
+              required
+            />
+            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits (created if it doesn't exist)</span>
+          </div>
+
+          <UAlert
+            color="info"
+            variant="subtle"
+            icon="i-lucide-folder-tree"
+            :title="`A worktree will be created for branch ${workBranch || '...'}`"
+          />
+        </template>
 
         <div class="flex justify-end gap-2">
           <UButton
@@ -108,7 +138,7 @@ async function submit() {
             label="Create"
             type="submit"
             :loading="loading"
-            :disabled="!name.trim() || !sourceBranch.trim() || !targetBranch.trim()"
+            :disabled="!isValid"
           />
         </div>
       </form>

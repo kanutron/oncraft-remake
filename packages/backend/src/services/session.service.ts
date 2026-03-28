@@ -8,8 +8,8 @@ import type { ProcessManager } from "./process-manager";
 interface CreateSessionOptions {
 	name: string;
 	sourceBranch: string;
-	targetBranch: string;
-	useWorktree: boolean;
+	workBranch?: string;
+	targetBranch?: string;
 }
 
 interface SendOptions {
@@ -101,19 +101,22 @@ export class SessionService {
 		const workspace = this.store.getWorkspace(workspaceId);
 		if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`);
 
+		const workBranch = opts.workBranch || null;
+		const targetBranch = opts.targetBranch || opts.sourceBranch;
 		let worktreePath: string | null = null;
 
-		if (opts.useWorktree) {
+		if (workBranch) {
 			const worktreeDir = join(
 				workspace.path,
 				"..",
 				".oncraft-worktrees",
-				opts.sourceBranch.replace(/\//g, "-"),
+				workBranch.replace(/\//g, "-"),
 			);
 			await this.gitService.createWorktree(
 				workspace.path,
-				opts.sourceBranch,
+				workBranch,
 				worktreeDir,
+				opts.sourceBranch,
 			);
 			worktreePath = worktreeDir;
 		}
@@ -124,7 +127,8 @@ export class SessionService {
 			claudeSessionId: null,
 			name: opts.name,
 			sourceBranch: opts.sourceBranch,
-			targetBranch: opts.targetBranch,
+			workBranch,
+			targetBranch,
 			worktreePath,
 			state: "idle",
 			createdAt: new Date().toISOString(),
