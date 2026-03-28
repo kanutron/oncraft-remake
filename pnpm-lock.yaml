@@ -41,6 +41,9 @@ importers:
       '@nuxt/ui':
         specifier: ^3.0.0
         version: 3.3.7(@babel/parser@7.29.2)(db0@0.3.4)(embla-carousel@8.6.0)(ioredis@5.10.1)(magicast@0.5.2)(typescript@5.9.3)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))(zod@4.3.6)
+      '@pinia/nuxt':
+        specifier: ^0.11.3
+        version: 0.11.3(magicast@0.5.2)(pinia@2.3.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))
       nuxt:
         specifier: ^4.0.0
         version: 4.4.2(@babel/core@7.29.0)(@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0))(@biomejs/biome@1.9.4)(@parcel/watcher@2.5.6)(@types/node@25.5.0)(@vue/compiler-sfc@3.5.31)(cac@6.7.14)(db0@0.3.4)(ioredis@5.10.1)(lightningcss@1.32.0)(magicast@0.5.2)(pinia@2.3.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))(rollup-plugin-visualizer@7.0.1(rollup@4.60.0))(rollup@4.60.0)(terser@5.46.1)(typescript@5.9.3)(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.1)(yaml@2.8.3))(yaml@2.8.3)
@@ -1636,6 +1639,11 @@ packages:
   '@parcel/watcher@2.5.6':
     resolution: {integrity: sha512-tmmZ3lQxAe/k/+rNnXQRawJ4NjxO2hqiOLTHvWchtGZULp4RyFeh6aU4XdOYBFe2KE1oShQTv4AblOs2iOrNnQ==}
     engines: {node: '>= 10.0.0'}
+
+  '@pinia/nuxt@0.11.3':
+    resolution: {integrity: sha512-7WVNHpWx4qAEzOlnyrRC88kYrwnlR/PrThWT0XI1dSNyUAXu/KBv9oR37uCgYkZroqP5jn8DfzbkNF3BtKvE9w==}
+    peerDependencies:
+      pinia: ^3.0.4
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -6596,6 +6604,13 @@ snapshots:
       '@parcel/watcher-win32-arm64': 2.5.6
       '@parcel/watcher-win32-ia32': 2.5.6
       '@parcel/watcher-win32-x64': 2.5.6
+
+  '@pinia/nuxt@0.11.3(magicast@0.5.2)(pinia@2.3.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3)))':
+    dependencies:
+      '@nuxt/kit': 4.4.2(magicast@0.5.2)
+      pinia: 2.3.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
+    transitivePeerDependencies:
+      - magicast
 
   '@pinojs/redact@0.4.0': {}
 

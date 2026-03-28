@@ -1,0 +1,87 @@
+import type { Session, SessionState, ChatMessage } from '~/types'
+
+export const useSessionStore = defineStore('session', () => {
+  const config = useRuntimeConfig()
+  const sessions = ref<Map<string, Session>>(new Map())
+  const messages = ref<Map<string, ChatMessage[]>>(new Map())
+  const activeSessionByWorkspace = ref<Map<string, string>>(new Map())
+
+  function activeSessionId(workspaceId: string): string | null {
+    return activeSessionByWorkspace.value.get(workspaceId) ?? null
+  }
+
+  function sessionsForWorkspace(workspaceId: string): Session[] {
+    return Array.from(sessions.value.values())
+      .filter(s => s.workspaceId === workspaceId)
+      .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
+  }
+
+  function messagesForSession(sessionId: string): ChatMessage[] {
+    return messages.value.get(sessionId) ?? []
+  }
+
+  async function fetchForWorkspace(workspaceId: string) {
+    const data = await $fetch<Session[]>(`${config.public.backendUrl}/workspaces/${workspaceId}/sessions`)
+    for (const s of data) {
+      sessions.value.set(s.id, s)
+    }
+  }
+
+  async function create(workspaceId: string, opts: { name: string; sourceBranch: string; targetBranch: string; useWorktree: boolean }) {
+    const session = await $fetch<Session>(`${config.public.backendUrl}/workspaces/${workspaceId}/sessions`, {
+      method: 'POST',
+      body: opts,
+    })
+    sessions.value.set(session.id, session)
+    activeSessionByWorkspace.value.set(workspaceId, session.id)
+    return session
+  }
+
+  async function send(sessionId: string, message: string, opts: { model?: string; effort?: string } = {}) {
+    await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/send`, {
+      method: 'POST',
+      body: { message, ...opts },
+    })
+  }
+
+  async function reply(sessionId: string, toolUseID: string, decision: 'allow' | 'deny') {
+    await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/reply`, {
+      method: 'POST',
+      body: { toolUseID, decision },
+    })
+  }
+
+  async function interrupt(sessionId: string) {
+    await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/interrupt`, { method: 'POST' })
+  }
+
+  function setActive(workspaceId: string, sessionId: string) {
+    activeSessionByWorkspace.value.set(workspaceId, sessionId)
+  }
+
+  function appendMessage(sessionId: string, raw: Record<string, unknown>) {
+    if (!messages.value.has(sessionId)) {
+      messages.value.set(sessionId, [])
+    }
+    messages.value.get(sessionId)!.push({
+      id: crypto.randomUUID(),
+      sessionId,
+      timestamp: new Date().toISOString(),
+      raw,
+    })
+  }
+
+  function updateState(sessionId: string, state: SessionState) {
+    const session = sessions.value.get(sessionId)
+    if (session) {
+      session.state = state
+    }
+  }
+
+  return {
+    sessions, messages, activeSessionByWorkspace,
+    activeSessionId, sessionsForWorkspace, messagesForSession,
+    fetchForWorkspace, create, send, reply, interrupt, setActive,
+    appendMessage, updateState,
+  }
+})
