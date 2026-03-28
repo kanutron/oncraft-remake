@@ -26,7 +26,7 @@ export class SessionService {
 		private processManager: ProcessManager,
 	) {
 		// Subscribe to git branch changes and match to sessions
-		this.eventBus.on("*", "git:branch-changed", (data) => {
+		this.eventBus.on("*", "repository:git-changed", (data) => {
 			const { path, from, to } = data as {
 				path: string;
 				from: string;
@@ -95,11 +95,11 @@ export class SessionService {
 	}
 
 	async create(
-		workspaceId: string,
+		repositoryId: string,
 		opts: CreateSessionOptions,
 	): Promise<Session> {
-		const workspace = this.store.getWorkspace(workspaceId);
-		if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`);
+		const repo = this.store.getRepository(repositoryId);
+		if (!repo) throw new Error(`Repository not found: ${repositoryId}`);
 
 		const workBranch = opts.workBranch || null;
 		const targetBranch = opts.targetBranch || opts.sourceBranch;
@@ -107,13 +107,13 @@ export class SessionService {
 
 		if (workBranch) {
 			const worktreeDir = join(
-				workspace.path,
+				repo.path,
 				"..",
 				".oncraft-worktrees",
 				workBranch.replace(/\//g, "-"),
 			);
 			await this.gitService.createWorktree(
-				workspace.path,
+				repo.path,
 				workBranch,
 				worktreeDir,
 				opts.sourceBranch,
@@ -123,7 +123,7 @@ export class SessionService {
 
 		const session: Session = {
 			id: crypto.randomUUID(),
-			workspaceId,
+			repositoryId,
 			claudeSessionId: null,
 			name: opts.name,
 			sourceBranch: opts.sourceBranch,
@@ -146,8 +146,8 @@ export class SessionService {
 		return this.store.getSession(id);
 	}
 
-	list(workspaceId: string): Session[] {
-		return this.store.listSessions(workspaceId);
+	list(repositoryId: string): Session[] {
+		return this.store.listSessions(repositoryId);
 	}
 
 	update(id: string, fields: { name?: string; targetBranch?: string }): void {
@@ -165,11 +165,11 @@ export class SessionService {
 			throw new Error(`Cannot send to session in ${session.state} state`);
 		}
 
-		const workspace = this.store.getWorkspace(session.workspaceId);
-		if (!workspace)
-			throw new Error(`Workspace not found: ${session.workspaceId}`);
+		const repo = this.store.getRepository(session.repositoryId);
+		if (!repo)
+			throw new Error(`Repository not found: ${session.repositoryId}`);
 
-		const cwd = session.worktreePath ?? workspace.path;
+		const cwd = session.worktreePath ?? repo.path;
 
 		this.checkWorktreeConflict(sessionId, "active");
 
@@ -222,9 +222,9 @@ export class SessionService {
 		const session = this.store.getSession(sessionId);
 		if (!session) throw new Error(`Session not found: ${sessionId}`);
 		if (!this.processManager.isAlive(sessionId)) {
-			const workspace = this.store.getWorkspace(session.workspaceId);
-			if (!workspace) throw new Error("Workspace not found");
-			const cwd = session.worktreePath ?? workspace.path;
+			const repo = this.store.getRepository(session.repositoryId);
+			if (!repo) throw new Error("Repository not found");
+			const cwd = session.worktreePath ?? repo.path;
 			await this.processManager.spawn(sessionId, cwd);
 			await this.processManager.waitForReady(sessionId);
 		}
@@ -243,11 +243,11 @@ export class SessionService {
 		}
 
 		if (session.worktreePath) {
-			const workspace = this.store.getWorkspace(session.workspaceId);
-			if (workspace) {
+			const repo = this.store.getRepository(session.repositoryId);
+			if (repo) {
 				try {
 					await this.gitService.removeWorktree(
-						workspace.path,
+						repo.path,
 						session.worktreePath,
 					);
 				} catch {
@@ -265,17 +265,17 @@ export class SessionService {
 		const session = this.store.getSession(sessionId);
 		if (!session) return;
 
-		const workspace = this.store.getWorkspace(session.workspaceId);
-		if (!workspace) return;
+		const repo = this.store.getRepository(session.repositoryId);
+		if (!repo) return;
 
-		const allSessions = this.store.listSessions(session.workspaceId);
-		const worktreePath = session.worktreePath ?? workspace.path;
+		const allSessions = this.store.listSessions(session.repositoryId);
+		const worktreePath = session.worktreePath ?? repo.path;
 
 		const conflicts = allSessions.filter(
 			(s) =>
 				s.id !== sessionId &&
 				s.state === "active" &&
-				(s.worktreePath ?? workspace.path) === worktreePath,
+				(s.worktreePath ?? repo.path) === worktreePath,
 		);
 
 		if (conflicts.length > 0) {
@@ -291,19 +291,24 @@ export class SessionService {
 		const session = this.store.getSession(sessionId);
 		const from = session?.state ?? "idle";
 		this.store.updateSessionState(sessionId, state);
-		const workspace = session
-			? this.store.getWorkspace(session.workspaceId)
+		const repo = session
+			? this.store.getRepository(session.repositoryId)
 			: null;
-		const path = session?.worktreePath ?? workspace?.path ?? "*";
-		this.eventBus.emit(path, "session:state", { sessionId, from, to: state });
+		const path = session?.worktreePath ?? repo?.path ?? "*";
+		this.eventBus.emit(path, "session:state-changed", {
+			sessionId,
+			repositoryId: session?.repositoryId,
+			from,
+			to: state,
+		});
 	}
 
 	private handleBranchChange(path: string, from: string, to: string): void {
-		const allWorkspaces = this.store.listWorkspaces();
-		for (const ws of allWorkspaces) {
-			const sessions = this.store.listSessions(ws.id);
+		const allRepos = this.store.listRepositories();
+		for (const repo of allRepos) {
+			const sessions = this.store.listSessions(repo.id);
 			for (const session of sessions) {
-				const sessionPath = session.worktreePath ?? ws.path;
+				const sessionPath = session.worktreePath ?? repo.path;
 				if (sessionPath === path && session.sourceBranch !== to) {
 					this.eventBus.emit(path, "session:branch-mismatch", {
 						sessionId: session.id,
