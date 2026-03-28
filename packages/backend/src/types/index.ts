@@ -1,4 +1,4 @@
-export interface Workspace {
+export interface Repository {
 	id: string;
 	path: string;
 	name: string;
@@ -8,7 +8,7 @@ export interface Workspace {
 
 export interface Session {
 	id: string;
-	workspaceId: string;
+	repositoryId: string;
 	claudeSessionId: string | null;
 	name: string;
 	sourceBranch: string;
@@ -53,7 +53,7 @@ export interface BridgeEvent {
 export interface WSServerEvent {
 	event: string;
 	sessionId?: string;
-	workspaceId?: string;
+	repositoryId?: string;
 	data: unknown;
 }
 
