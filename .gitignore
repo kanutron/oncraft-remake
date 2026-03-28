@@ -1,8 +1,12 @@
+.local/
+.claude/
 node_modules/
 dist/
 .nuxt/
 .output/
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 .env
 .env.local

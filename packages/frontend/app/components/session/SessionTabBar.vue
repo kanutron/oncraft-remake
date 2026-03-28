@@ -72,7 +72,7 @@ const activeTab = computed({
       />
     </div>
 
-    <NewSessionDialog
+    <SessionNewSessionDialog
       v-model:open="showNewSession"
       :workspace-id="workspaceId"
       @close="showNewSession = false"

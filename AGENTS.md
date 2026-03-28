@@ -25,11 +25,19 @@ All commands use [Task](https://taskfile.dev/) (see `Taskfile.yml`).
 
 Package-scoped variants: `task dev:backend`, `task test:frontend`, etc.
 
+### Agent Operations
+
+Autonomous procedures agents can invoke or be directed to run. Located in `.context/agents/operation/`.
+
+| Operation | What it does |
+|---|---|
+| [live-debug](.context/agents/operation/live-debug.md) | Launch full stack, observe via logs + Playwright browser, interact with UI, tear down cleanly |
+
 ## Constraints
 
 1. **Bun runtime** for backend — NOT Node.js. Use `bun test`, `bun build`, `bunx`.
 2. **pnpm** for package management — no npm or yarn.
-3. **NuxtUI v3** for all UI components — no custom CSS, no Tailwind utilities outside NuxtUI.
+3. **NuxtUI v4** for all UI components — no custom CSS, no Tailwind utilities outside NuxtUI.
 4. **Conventional commits** required on every commit.
 5. **Specs and plans** live under `.context/agents/spec/` — never under `docs/`.
 6. **No backward compatibility** unless explicitly instructed.
@@ -39,6 +47,7 @@ Package-scoped variants: `task dev:backend`, `task test:frontend`, etc.
 - Design spec: `.context/agents/spec/oncraft-remake/design.md`
 - Implementation plan: `.context/agents/spec/oncraft-remake/plan.md`
 - Patterns index: `.context/agents/patterns/index.md`
+- Agent operations: `.context/agents/operation/`
 
 ## Startup Protocol
 
