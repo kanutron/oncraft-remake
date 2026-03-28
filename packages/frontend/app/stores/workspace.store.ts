@@ -18,6 +18,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function fetchAll() {
     const data = await $fetch<Workspace[]>(`${config.public.backendUrl}/workspaces`)
     workspaces.value = new Map(data.map(ws => [ws.id, ws]))
+    if (!activeWorkspaceId.value && data.length > 0) {
+      const sorted = [...data].sort((a, b) =>
+        new Date(b.lastOpenedAt).getTime() - new Date(a.lastOpenedAt).getTime()
+      )
+      activeWorkspaceId.value = sorted[0].id
+    }
   }
 
   async function open(path: string, name?: string) {
