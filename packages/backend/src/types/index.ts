@@ -1,3 +1,10 @@
+export interface Project {
+	id: string;
+	name: string;
+	createdAt: string;
+	lastOpenedAt: string;
+}
+
 export interface Repository {
 	id: string;
 	path: string;

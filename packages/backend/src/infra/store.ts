@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { Session, SessionState, Repository } from "../types";
+import type { Session, SessionState, Repository, Project } from "../types";
 
 export class Store {
 	private db: Database;
@@ -15,6 +15,14 @@ export class Store {
 			CREATE TABLE IF NOT EXISTS repositories (
 				id TEXT PRIMARY KEY,
 				path TEXT NOT NULL UNIQUE,
+				name TEXT NOT NULL,
+				createdAt TEXT NOT NULL,
+				lastOpenedAt TEXT NOT NULL
+			)
+		`);
+		this.db.exec(`
+			CREATE TABLE IF NOT EXISTS project (
+				id TEXT PRIMARY KEY,
 				name TEXT NOT NULL,
 				createdAt TEXT NOT NULL,
 				lastOpenedAt TEXT NOT NULL
@@ -166,6 +174,38 @@ export class Store {
 		this.db
 			.prepare("DELETE FROM sessions WHERE repositoryId = ?")
 			.run(repositoryId);
+	}
+
+	// --- Project ---
+
+	getProject(): Project | null {
+		return this.db
+			.prepare("SELECT * FROM project LIMIT 1")
+			.get() as Project | null;
+	}
+
+	createProject(project: Project): void {
+		this.db
+			.prepare(
+				"INSERT INTO project (id, name, createdAt, lastOpenedAt) VALUES (?, ?, ?, ?)",
+			)
+			.run(project.id, project.name, project.createdAt, project.lastOpenedAt);
+	}
+
+	updateProject(id: string, fields: { name?: string }): void {
+		const sets: string[] = [];
+		const values: unknown[] = [];
+		if (fields.name !== undefined) {
+			sets.push("name = ?");
+			values.push(fields.name);
+		}
+		sets.push("lastOpenedAt = ?");
+		values.push(new Date().toISOString());
+		if (sets.length === 0) return;
+		values.push(id);
+		this.db
+			.prepare(`UPDATE project SET ${sets.join(", ")} WHERE id = ?`)
+			.run(...values);
 	}
 
 	close(): void {

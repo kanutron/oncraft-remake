@@ -1,6 +1,13 @@
 // Mirror backend types — keep in sync manually for now
 // (shared package is a future optimization)
 
+export interface Project {
+  id: string
+  name: string
+  createdAt: string
+  lastOpenedAt: string
+}
+
 export interface Repository {
   id: string
   path: string
