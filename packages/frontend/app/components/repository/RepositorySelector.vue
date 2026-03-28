@@ -12,7 +12,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const workspaceStore = useWorkspaceStore()
+const repositoryStore = useRepositoryStore()
 
 const path = ref('')
 const name = ref('')
@@ -23,7 +23,7 @@ async function submit() {
 
   loading.value = true
   try {
-    await workspaceStore.open(path.value.trim(), name.value.trim() || undefined)
+    await repositoryStore.open(path.value.trim(), name.value.trim() || undefined)
     path.value = ''
     name.value = ''
     open.value = false
@@ -40,12 +40,12 @@ function cancel() {
 </script>
 
 <template>
-  <!-- Modal mode: triggered from WorkspaceTabBar -->
+  <!-- Modal mode: triggered from RepositoryTabBar -->
   <UModal
     v-if="modal"
     v-model:open="open"
-    title="Open Workspace"
-    description="Add a git repository as a workspace."
+    title="Add Repository"
+    description="Add a git repository to this project."
   >
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
@@ -77,7 +77,7 @@ function cancel() {
             @click="cancel"
           />
           <UButton
-            label="Open"
+            label="Add"
             type="submit"
             :loading="loading"
             :disabled="!path.trim()"
@@ -87,10 +87,10 @@ function cancel() {
     </template>
   </UModal>
 
-  <!-- Inline mode: empty state when no workspaces are open -->
+  <!-- Inline mode: empty state when no repositories are open -->
   <div v-else class="w-full max-w-md p-6">
     <h2 class="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-1">
-      Open Workspace
+      Add Repository
     </h2>
     <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
       Add a git repository to get started.
@@ -119,7 +119,7 @@ function cancel() {
 
       <div class="flex justify-end">
         <UButton
-          label="Open Workspace"
+          label="Add Repository"
           type="submit"
           :loading="loading"
           :disabled="!path.trim()"

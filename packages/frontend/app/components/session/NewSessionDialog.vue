@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
-  workspaceId: string
+  repositoryId: string
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -31,7 +31,7 @@ async function submit() {
   loading.value = true
   error.value = ''
   try {
-    await sessionStore.create(props.workspaceId, {
+    await sessionStore.create(props.repositoryId, {
       name: name.value.trim(),
       sourceBranch: sourceBranch.value.trim(),
       workBranch: workIsolated.value ? workBranch.value.trim() : undefined,
@@ -57,7 +57,7 @@ async function submit() {
   <UModal
     v-model:open="open"
     title="New Session"
-    description="Create a new Claude Code session in this workspace."
+    description="Create a new Claude Code session in this repository."
   >
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">

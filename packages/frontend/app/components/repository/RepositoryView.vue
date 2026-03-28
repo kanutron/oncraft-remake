@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import type { Workspace } from '~/types'
+import type { Repository } from '~/types'
 
 const props = defineProps<{
-  workspace: Workspace
+  repository: Repository
 }>()
 
 const sessionStore = useSessionStore()
 
-const activeSessionId = computed(() => sessionStore.activeSessionId(props.workspace.id))
+const activeSessionId = computed(() => sessionStore.activeSessionId(props.repository.id))
 const activeSession = computed(() =>
   activeSessionId.value ? sessionStore.sessions.get(activeSessionId.value) ?? null : null
 )
 
-watch(() => props.workspace.id, (id) => {
-  sessionStore.fetchForWorkspace(id)
+watch(() => props.repository.id, (id) => {
+  sessionStore.fetchForRepository(id)
 }, { immediate: true })
 </script>
 
 <template>
   <div class="flex flex-col h-full">
-    <SessionTabBar :workspace-id="workspace.id" />
+    <SessionTabBar :repository-id="repository.id" />
 
     <div class="flex-1 overflow-hidden">
       <SessionView

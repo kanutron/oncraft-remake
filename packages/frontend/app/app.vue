@@ -1,9 +1,9 @@
 <script setup lang="ts">
-const workspaceStore = useWorkspaceStore()
+const repositoryStore = useRepositoryStore()
 const { connect } = useWebSocket()
 
 onMounted(() => {
-  workspaceStore.fetchAll()
+  repositoryStore.fetchAll()
   connect()
 })
 </script>
@@ -11,17 +11,17 @@ onMounted(() => {
 <template>
   <UApp>
     <div class="flex flex-col h-screen">
-      <WorkspaceTabBar />
+      <RepositoryTabBar />
       <div class="flex-1 overflow-hidden">
-        <WorkspaceView
-          v-if="workspaceStore.activeWorkspace"
-          :workspace="workspaceStore.activeWorkspace"
+        <RepositoryView
+          v-if="repositoryStore.activeRepository"
+          :repository="repositoryStore.activeRepository"
         />
         <div
           v-else
           class="flex items-center justify-center h-full"
         >
-          <WorkspaceSelector :modal="false" />
+          <RepositorySelector :modal="false" />
         </div>
       </div>
     </div>

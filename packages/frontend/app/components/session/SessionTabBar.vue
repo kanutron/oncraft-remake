@@ -3,14 +3,14 @@ import type { TabsItem } from '@nuxt/ui'
 import type { SessionState } from '~/types'
 
 const props = defineProps<{
-  workspaceId: string
+  repositoryId: string
 }>()
 
 const sessionStore = useSessionStore()
 
 const showNewSession = ref(false)
 
-const sessions = computed(() => sessionStore.sessionsForWorkspace(props.workspaceId))
+const sessions = computed(() => sessionStore.sessionsForRepository(props.repositoryId))
 
 const stateColor: Record<SessionState, string> = {
   idle: 'neutral',
@@ -35,9 +35,9 @@ const tabItems = computed<TabsItem[]>(() =>
 )
 
 const activeTab = computed({
-  get: () => sessionStore.activeSessionId(props.workspaceId) ?? undefined,
+  get: () => sessionStore.activeSessionId(props.repositoryId) ?? undefined,
   set: (value) => {
-    if (value) sessionStore.setActive(props.workspaceId, String(value))
+    if (value) sessionStore.setActive(props.repositoryId, String(value))
   },
 })
 </script>
@@ -74,7 +74,7 @@ const activeTab = computed({
 
     <SessionNewSessionDialog
       v-model:open="showNewSession"
-      :workspace-id="workspaceId"
+      :repository-id="repositoryId"
       @close="showNewSession = false"
     />
   </div>
