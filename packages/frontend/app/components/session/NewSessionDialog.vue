@@ -16,11 +16,13 @@ const sourceBranch = ref('')
 const targetBranch = ref('main')
 const useWorktree = ref(true)
 const loading = ref(false)
+const error = ref('')
 
 async function submit() {
   if (!name.value.trim() || !sourceBranch.value.trim() || !targetBranch.value.trim()) return
 
   loading.value = true
+  error.value = ''
   try {
     await sessionStore.create(props.workspaceId, {
       name: name.value.trim(),
@@ -34,6 +36,9 @@ async function submit() {
     useWorktree.value = true
     open.value = false
     emit('close')
+  } catch (err: unknown) {
+    const msg = (err as { data?: { error?: string } })?.data?.error
+    error.value = msg || 'Failed to create session'
   } finally {
     loading.value = false
   }
@@ -48,6 +53,13 @@ async function submit() {
   >
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
+        <UAlert
+          v-if="error"
+          color="error"
+          variant="subtle"
+          :title="error"
+          icon="i-lucide-alert-circle"
+        />
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Session name</label>
           <UInput
