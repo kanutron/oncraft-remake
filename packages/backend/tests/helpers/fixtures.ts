@@ -1,6 +1,6 @@
-import type { Session, Workspace } from "../../src/types";
+import type { Session, Repository } from "../../src/types";
 
-export function makeWorkspace(overrides: Partial<Workspace> = {}): Workspace {
+export function makeRepository(overrides: Partial<Repository> = {}): Repository {
 	return {
 		id: crypto.randomUUID(),
 		path: "/tmp/test-repo",
@@ -14,10 +14,11 @@ export function makeWorkspace(overrides: Partial<Workspace> = {}): Workspace {
 export function makeSession(overrides: Partial<Session> = {}): Session {
 	return {
 		id: crypto.randomUUID(),
-		workspaceId: "ws-1",
+		repositoryId: "repo-1",
 		claudeSessionId: null,
 		name: "test-session",
 		sourceBranch: "feat/test",
+		workBranch: null,
 		targetBranch: "dev",
 		worktreePath: null,
 		state: "idle",

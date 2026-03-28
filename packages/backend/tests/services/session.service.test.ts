@@ -5,7 +5,7 @@ import { Store } from "../../src/infra/store";
 import { GitService } from "../../src/services/git.service";
 import { ProcessManager } from "../../src/services/process-manager";
 import { SessionService } from "../../src/services/session.service";
-import { makeWorkspace } from "../helpers/fixtures";
+import { makeRepository } from "../helpers/fixtures";
 import { createTestRepo } from "../helpers/test-repo";
 
 const DB_PATH = "/tmp/oncraft-session-test.db";
@@ -26,9 +26,9 @@ beforeEach(async () => {
 	processManager = new ProcessManager(eventBus);
 	service = new SessionService(store, eventBus, gitService, processManager);
 
-	// Create a workspace first
-	const ws = makeWorkspace({ id: "ws-1", path: repoPath });
-	store.createWorkspace(ws);
+	// Create a repository first
+	const repository = makeRepository({ id: "repo-1", path: repoPath });
+	store.createRepository(repository);
 });
 
 afterEach(async () => {
@@ -48,13 +48,12 @@ afterEach(async () => {
 
 describe("SessionService", () => {
 	test("creates a session with git context", async () => {
-		const session = await service.create("ws-1", {
+		const session = await service.create("repo-1", {
 			name: "Auth feature",
 			sourceBranch: "feat/auth",
 			targetBranch: "dev",
-			useWorktree: false,
 		});
-		expect(session.workspaceId).toBe("ws-1");
+		expect(session.repositoryId).toBe("repo-1");
 		expect(session.sourceBranch).toBe("feat/auth");
 		expect(session.targetBranch).toBe("dev");
 		expect(session.state).toBe("idle");
@@ -64,11 +63,11 @@ describe("SessionService", () => {
 		const gitService = new GitService();
 		await gitService.createBranch(repoPath, "feat/wt-test");
 
-		const session = await service.create("ws-1", {
+		const session = await service.create("repo-1", {
 			name: "WT session",
 			sourceBranch: "feat/wt-test",
+			workBranch: "feat/wt-test",
 			targetBranch: "main",
-			useWorktree: true,
 		});
 		expect(session.worktreePath).toBeTruthy();
 		expect(session.state).toBe("idle");
@@ -77,35 +76,31 @@ describe("SessionService", () => {
 		await service.destroy(session.id);
 	});
 
-	test("lists sessions for workspace", async () => {
-		await service.create("ws-1", {
+	test("lists sessions for repository", async () => {
+		await service.create("repo-1", {
 			name: "s1",
 			sourceBranch: "a",
 			targetBranch: "b",
-			useWorktree: false,
 		});
-		await service.create("ws-1", {
+		await service.create("repo-1", {
 			name: "s2",
 			sourceBranch: "c",
 			targetBranch: "d",
-			useWorktree: false,
 		});
-		const sessions = service.list("ws-1");
+		const sessions = service.list("repo-1");
 		expect(sessions).toHaveLength(2);
 	});
 
 	test("emits worktree conflict warning when two sessions on same worktree become active", async () => {
-		const s1 = await service.create("ws-1", {
+		const s1 = await service.create("repo-1", {
 			name: "s1",
 			sourceBranch: "a",
 			targetBranch: "b",
-			useWorktree: false,
 		});
-		const s2 = await service.create("ws-1", {
+		const s2 = await service.create("repo-1", {
 			name: "s2",
 			sourceBranch: "c",
 			targetBranch: "d",
-			useWorktree: false,
 		});
 
 		const warnings: unknown[] = [];
@@ -121,11 +116,10 @@ describe("SessionService", () => {
 	});
 
 	test("destroy cleans up session", async () => {
-		const session = await service.create("ws-1", {
+		const session = await service.create("repo-1", {
 			name: "s1",
 			sourceBranch: "a",
 			targetBranch: "b",
-			useWorktree: false,
 		});
 		await service.destroy(session.id);
 		expect(service.get(session.id)).toBeNull();

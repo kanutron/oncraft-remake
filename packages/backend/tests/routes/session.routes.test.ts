@@ -5,7 +5,7 @@ import { createTestRepo } from "../helpers/test-repo";
 let app: Awaited<ReturnType<typeof buildApp>>;
 let repoPath: string;
 let cleanupRepo: () => void;
-let workspaceId: string;
+let repositoryId: string;
 
 beforeEach(async () => {
 	const repo = await createTestRepo();
@@ -13,13 +13,13 @@ beforeEach(async () => {
 	cleanupRepo = repo.cleanup;
 	app = await buildApp();
 
-	// Create workspace
-	const wsRes = await app.inject({
+	// Create repository
+	const repoRes = await app.inject({
 		method: "POST",
-		url: "/workspaces",
+		url: "/repositories",
 		payload: { path: repoPath },
 	});
-	workspaceId = wsRes.json().id;
+	repositoryId = repoRes.json().id;
 });
 
 afterEach(async () => {
@@ -31,32 +31,30 @@ describe("Session routes", () => {
 	test("POST creates a session", async () => {
 		const res = await app.inject({
 			method: "POST",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 			payload: {
 				name: "test",
 				sourceBranch: "feat/x",
 				targetBranch: "dev",
-				useWorktree: false,
 			},
 		});
 		expect(res.statusCode).toBe(200);
 		expect(res.json().sourceBranch).toBe("feat/x");
 	});
 
-	test("GET lists sessions for workspace", async () => {
+	test("GET lists sessions for repository", async () => {
 		await app.inject({
 			method: "POST",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 			payload: {
 				name: "s1",
 				sourceBranch: "a",
 				targetBranch: "b",
-				useWorktree: false,
 			},
 		});
 		const res = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 		});
 		expect(res.json()).toHaveLength(1);
 	});
@@ -65,12 +63,11 @@ describe("Session routes", () => {
 		const created = (
 			await app.inject({
 				method: "POST",
-				url: `/workspaces/${workspaceId}/sessions`,
+				url: `/repositories/${repositoryId}/sessions`,
 				payload: {
 					name: "s1",
 					sourceBranch: "a",
 					targetBranch: "b",
-					useWorktree: false,
 				},
 			})
 		).json();
@@ -85,12 +82,11 @@ describe("Session routes", () => {
 		const created = (
 			await app.inject({
 				method: "POST",
-				url: `/workspaces/${workspaceId}/sessions`,
+				url: `/repositories/${repositoryId}/sessions`,
 				payload: {
 					name: "s1",
 					sourceBranch: "a",
 					targetBranch: "b",
-					useWorktree: false,
 				},
 			})
 		).json();
@@ -105,12 +101,11 @@ describe("Session routes", () => {
 		const created = (
 			await app.inject({
 				method: "POST",
-				url: `/workspaces/${workspaceId}/sessions`,
+				url: `/repositories/${repositoryId}/sessions`,
 				payload: {
 					name: "s1",
 					sourceBranch: "a",
 					targetBranch: "b",
-					useWorktree: false,
 				},
 			})
 		).json();

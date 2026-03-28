@@ -18,11 +18,11 @@ afterEach(async () => {
 	cleanupRepo();
 });
 
-describe("Workspace routes", () => {
-	test("POST /workspaces opens a repo", async () => {
+describe("Repository routes", () => {
+	test("POST /repositories opens a repo", async () => {
 		const res = await app.inject({
 			method: "POST",
-			url: "/workspaces",
+			url: "/repositories",
 			payload: { path: repoPath },
 		});
 		expect(res.statusCode).toBe(200);
@@ -31,51 +31,51 @@ describe("Workspace routes", () => {
 		expect(body.id).toBeTruthy();
 	});
 
-	test("POST /workspaces rejects non-git path", async () => {
+	test("POST /repositories rejects non-git path", async () => {
 		const res = await app.inject({
 			method: "POST",
-			url: "/workspaces",
+			url: "/repositories",
 			payload: { path: "/tmp" },
 		});
 		expect(res.statusCode).toBe(400);
 	});
 
-	test("GET /workspaces lists all", async () => {
+	test("GET /repositories lists all", async () => {
 		await app.inject({
 			method: "POST",
-			url: "/workspaces",
+			url: "/repositories",
 			payload: { path: repoPath },
 		});
-		const res = await app.inject({ method: "GET", url: "/workspaces" });
+		const res = await app.inject({ method: "GET", url: "/repositories" });
 		expect(res.json()).toHaveLength(1);
 	});
 
-	test("GET /workspaces/:id includes branch", async () => {
+	test("GET /repositories/:id includes branch", async () => {
 		const created = (
 			await app.inject({
 				method: "POST",
-				url: "/workspaces",
+				url: "/repositories",
 				payload: { path: repoPath },
 			})
 		).json();
 		const res = await app.inject({
 			method: "GET",
-			url: `/workspaces/${created.id}`,
+			url: `/repositories/${created.id}`,
 		});
 		expect(res.json().branch).toBeTruthy();
 	});
 
-	test("DELETE /workspaces/:id removes workspace", async () => {
+	test("DELETE /repositories/:id removes repository", async () => {
 		const created = (
 			await app.inject({
 				method: "POST",
-				url: "/workspaces",
+				url: "/repositories",
 				payload: { path: repoPath },
 			})
 		).json();
 		const res = await app.inject({
 			method: "DELETE",
-			url: `/workspaces/${created.id}`,
+			url: `/repositories/${created.id}`,
 		});
 		expect(res.statusCode).toBe(204);
 	});

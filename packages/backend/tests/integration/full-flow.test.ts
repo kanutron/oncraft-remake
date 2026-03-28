@@ -20,40 +20,39 @@ afterEach(async () => {
 });
 
 describe("Full flow integration", () => {
-	test("workspace -> session -> update -> cleanup lifecycle", async () => {
-		// Step 1: POST /workspaces with a real test repo
-		const createWsRes = await app.inject({
+	test("repository -> session -> update -> cleanup lifecycle", async () => {
+		// Step 1: POST /repositories with a real test repo
+		const createRepoRes = await app.inject({
 			method: "POST",
-			url: "/workspaces",
+			url: "/repositories",
 			payload: { path: repoPath, name: "integration-test" },
 		});
-		expect(createWsRes.statusCode).toBe(200);
-		const workspace = createWsRes.json();
-		expect(workspace.id).toBeTruthy();
-		expect(workspace.path).toBe(repoPath);
-		expect(workspace.name).toBe("integration-test");
+		expect(createRepoRes.statusCode).toBe(200);
+		const repository = createRepoRes.json();
+		expect(repository.id).toBeTruthy();
+		expect(repository.path).toBe(repoPath);
+		expect(repository.name).toBe("integration-test");
 
-		const workspaceId = workspace.id;
+		const repositoryId = repository.id;
 
-		// Step 2: GET /workspaces/:id — verify branch is returned
-		const getWsRes = await app.inject({
+		// Step 2: GET /repositories/:id — verify branch is returned
+		const getRepoRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}`,
+			url: `/repositories/${repositoryId}`,
 		});
-		expect(getWsRes.statusCode).toBe(200);
-		const wsWithBranch = getWsRes.json();
-		expect(wsWithBranch.branch).toBeTruthy();
-		expect(wsWithBranch.branch).toBe("master");
+		expect(getRepoRes.statusCode).toBe(200);
+		const repoWithBranch = getRepoRes.json();
+		expect(repoWithBranch.branch).toBeTruthy();
+		expect(repoWithBranch.branch).toBe("master");
 
-		// Step 3: POST /workspaces/:id/sessions with useWorktree: false
+		// Step 3: POST /repositories/:id/sessions without workBranch (no worktree)
 		const createSessionRes = await app.inject({
 			method: "POST",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 			payload: {
 				name: "test-session",
 				sourceBranch: "master",
 				targetBranch: "master",
-				useWorktree: false,
 			},
 		});
 		expect(createSessionRes.statusCode).toBe(200);
@@ -64,14 +63,14 @@ describe("Full flow integration", () => {
 		expect(session.targetBranch).toBe("master");
 		expect(session.worktreePath).toBeNull();
 		expect(session.state).toBe("idle");
-		expect(session.workspaceId).toBe(workspaceId);
+		expect(session.repositoryId).toBe(repositoryId);
 
 		const sessionId = session.id;
 
-		// Step 4: GET /workspaces/:id/sessions — verify session exists with correct git context
+		// Step 4: GET /repositories/:id/sessions — verify session exists with correct git context
 		const listSessionsRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 		});
 		expect(listSessionsRes.statusCode).toBe(200);
 		const sessions = listSessionsRes.json();
@@ -111,11 +110,11 @@ describe("Full flow integration", () => {
 		});
 		expect(verifyRenameRes.json().name).toBe("renamed-session");
 
-		// Step 7: Create a branch via POST /workspaces/:id/git/branch
+		// Step 7: Create a branch via POST /repositories/:id/git/branch
 		const branchName = "feature/integration-test";
 		const createBranchRes = await app.inject({
 			method: "POST",
-			url: `/workspaces/${workspaceId}/git/branch`,
+			url: `/repositories/${repositoryId}/git/branch`,
 			payload: { name: branchName },
 		});
 		expect(createBranchRes.statusCode).toBe(200);
@@ -124,21 +123,21 @@ describe("Full flow integration", () => {
 		// Verify branch was created
 		const branchesRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}/git/branches`,
+			url: `/repositories/${repositoryId}/git/branches`,
 		});
 		expect(branchesRes.statusCode).toBe(200);
 		const branches = branchesRes.json();
 		expect(branches.all).toContain(branchName);
 
-		// Step 8: Create a session with useWorktree: true on that branch
+		// Step 8: Create a session with workBranch to create a worktree
 		const worktreeSessionRes = await app.inject({
 			method: "POST",
-			url: `/workspaces/${workspaceId}/sessions`,
+			url: `/repositories/${repositoryId}/sessions`,
 			payload: {
 				name: "worktree-session",
 				sourceBranch: branchName,
+				workBranch: branchName,
 				targetBranch: "master",
-				useWorktree: true,
 			},
 		});
 		expect(worktreeSessionRes.statusCode).toBe(200);
@@ -149,10 +148,10 @@ describe("Full flow integration", () => {
 
 		const worktreeSessionId = worktreeSession.id;
 
-		// Step 9: Verify worktree was created via GET /workspaces/:id/git/worktrees
+		// Step 9: Verify worktree was created via GET /repositories/:id/git/worktrees
 		const worktreesRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}/git/worktrees`,
+			url: `/repositories/${repositoryId}/git/worktrees`,
 		});
 		expect(worktreesRes.statusCode).toBe(200);
 		const worktrees = worktreesRes.json();
@@ -177,7 +176,7 @@ describe("Full flow integration", () => {
 		// Verify worktree was removed
 		const worktreesAfterRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}/git/worktrees`,
+			url: `/repositories/${repositoryId}/git/worktrees`,
 		});
 		const worktreesAfter = worktreesAfterRes.json();
 		const removedWorktree = worktreesAfter.find(
@@ -192,19 +191,19 @@ describe("Full flow integration", () => {
 		});
 		expect(deletedSessionRes.statusCode).toBe(404);
 
-		// Step 11: DELETE /workspaces/:id — verify cleanup
-		const deleteWsRes = await app.inject({
+		// Step 11: DELETE /repositories/:id — verify cleanup
+		const deleteRepoRes = await app.inject({
 			method: "DELETE",
-			url: `/workspaces/${workspaceId}`,
+			url: `/repositories/${repositoryId}`,
 		});
-		expect(deleteWsRes.statusCode).toBe(204);
+		expect(deleteRepoRes.statusCode).toBe(204);
 
-		// Verify workspace is gone
-		const deletedWsRes = await app.inject({
+		// Verify repository is gone
+		const deletedRepoRes = await app.inject({
 			method: "GET",
-			url: `/workspaces/${workspaceId}`,
+			url: `/repositories/${repositoryId}`,
 		});
-		expect(deletedWsRes.statusCode).toBe(404);
+		expect(deletedRepoRes.statusCode).toBe(404);
 
 		// Verify remaining session (the non-worktree one) is also cleaned up
 		const remainingSessionRes = await app.inject({
@@ -213,11 +212,11 @@ describe("Full flow integration", () => {
 		});
 		expect(remainingSessionRes.statusCode).toBe(404);
 
-		// Verify listing workspaces returns empty
-		const listWsRes = await app.inject({
+		// Verify listing repositories returns empty
+		const listReposRes = await app.inject({
 			method: "GET",
-			url: "/workspaces",
+			url: "/repositories",
 		});
-		expect(listWsRes.json()).toHaveLength(0);
+		expect(listReposRes.json()).toHaveLength(0);
 	});
 });

@@ -25,10 +25,10 @@ afterEach(async () => {
 });
 
 describe("GitWatcher", () => {
-	test("emits git:branch-changed when branch switches", async () => {
+	test("emits repository:git-changed when branch switches", async () => {
 		await gitService.createBranch(repoPath, "feat/test");
 		const received: unknown[] = [];
-		eventBus.on(repoPath, "git:branch-changed", (data) => received.push(data));
+		eventBus.on(repoPath, "repository:git-changed", (data) => received.push(data));
 
 		watcher.watch(repoPath);
 		// Give watcher time to initialize
@@ -46,7 +46,7 @@ describe("GitWatcher", () => {
 	test("unwatch stops emitting events", async () => {
 		await gitService.createBranch(repoPath, "feat/test");
 		const received: unknown[] = [];
-		eventBus.on(repoPath, "git:branch-changed", (data) => received.push(data));
+		eventBus.on(repoPath, "repository:git-changed", (data) => received.push(data));
 
 		watcher.watch(repoPath);
 		await new Promise((r) => setTimeout(r, 200));
@@ -60,7 +60,7 @@ describe("GitWatcher", () => {
 
 	test("unwatchAll stops all watchers", async () => {
 		const received: unknown[] = [];
-		eventBus.on(repoPath, "git:branch-changed", (data) => received.push(data));
+		eventBus.on(repoPath, "repository:git-changed", (data) => received.push(data));
 
 		watcher.watch(repoPath);
 		await new Promise((r) => setTimeout(r, 200));
@@ -76,7 +76,7 @@ describe("GitWatcher", () => {
 	test("watch is idempotent — calling twice does not duplicate events", async () => {
 		await gitService.createBranch(repoPath, "feat/test");
 		const received: unknown[] = [];
-		eventBus.on(repoPath, "git:branch-changed", (data) => received.push(data));
+		eventBus.on(repoPath, "repository:git-changed", (data) => received.push(data));
 
 		watcher.watch(repoPath);
 		watcher.watch(repoPath);
