@@ -44,7 +44,23 @@ export class GitService {
 		branch: string,
 		worktreePath: string,
 	): Promise<void> {
-		await this.gitFor(repoPath).raw(["worktree", "add", worktreePath, branch]);
+		const branches = await this.listBranches(repoPath);
+		if (branches.all.includes(branch)) {
+			await this.gitFor(repoPath).raw([
+				"worktree",
+				"add",
+				worktreePath,
+				branch,
+			]);
+		} else {
+			await this.gitFor(repoPath).raw([
+				"worktree",
+				"add",
+				"-b",
+				branch,
+				worktreePath,
+			]);
+		}
 	}
 
 	async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
