@@ -6,13 +6,13 @@ import { EventBus } from "./infra/event-bus";
 import { GitWatcher } from "./infra/git-watcher";
 import { Store } from "./infra/store";
 import { registerGitRoutes } from "./routes/git.routes";
+import { registerRepositoryRoutes } from "./routes/repository.routes";
 import { registerSessionRoutes } from "./routes/session.routes";
-import { registerWorkspaceRoutes } from "./routes/workspace.routes";
 import { registerWSRoutes } from "./routes/ws.routes";
 import { GitService } from "./services/git.service";
 import { ProcessManager } from "./services/process-manager";
+import { RepositoryService } from "./services/repository.service";
 import { SessionService } from "./services/session.service";
-import { WorkspaceService } from "./services/workspace.service";
 
 const app = Fastify({ logger: true });
 
@@ -30,7 +30,7 @@ const gitWatcher = new GitWatcher(eventBus, gitService);
 const processManager = new ProcessManager(eventBus);
 
 // Services
-const workspaceService = new WorkspaceService(store, gitService, gitWatcher);
+const repositoryService = new RepositoryService(store, gitService, gitWatcher);
 const sessionService = new SessionService(
 	store,
 	eventBus,
@@ -40,9 +40,9 @@ const sessionService = new SessionService(
 
 // Routes
 app.get("/health", async () => ({ status: "ok" }));
-registerWorkspaceRoutes(app, workspaceService);
+registerRepositoryRoutes(app, repositoryService);
 registerSessionRoutes(app, sessionService);
-registerGitRoutes(app, workspaceService, gitService);
+registerGitRoutes(app, repositoryService, gitService);
 registerWSRoutes(app, eventBus, sessionService);
 
 // Lifecycle

@@ -22,10 +22,10 @@ export function registerWSRoutes(
 		);
 
 		unsubs.push(
-			eventBus.on("*", "session:state", (data) => {
+			eventBus.on("*", "session:state-changed", (data) => {
 				socket.send(
 					JSON.stringify({
-						event: "session:state",
+						event: "session:state-changed",
 						...(data as Record<string, unknown>),
 					}),
 				);
@@ -66,10 +66,10 @@ export function registerWSRoutes(
 		);
 
 		unsubs.push(
-			eventBus.on("*", "git:branch-changed", (data) => {
+			eventBus.on("*", "repository:git-changed", (data) => {
 				socket.send(
 					JSON.stringify({
-						event: "git:branch-changed",
+						event: "repository:git-changed",
 						...(data as Record<string, unknown>),
 					}),
 				);

@@ -5,8 +5,8 @@ export function registerSessionRoutes(
 	app: FastifyInstance,
 	sessionService: SessionService,
 ): void {
-	app.post("/workspaces/:workspaceId/sessions", async (request, reply) => {
-		const { workspaceId } = request.params as { workspaceId: string };
+	app.post("/repositories/:repositoryId/sessions", async (request, reply) => {
+		const { repositoryId } = request.params as { repositoryId: string };
 		const { name, sourceBranch, workBranch, targetBranch } = request.body as {
 			name: string;
 			sourceBranch: string;
@@ -20,7 +20,7 @@ export function registerSessionRoutes(
 			});
 		}
 		try {
-			return await sessionService.create(workspaceId, {
+			return await sessionService.create(repositoryId, {
 				name,
 				sourceBranch,
 				workBranch,
@@ -33,9 +33,9 @@ export function registerSessionRoutes(
 		}
 	});
 
-	app.get("/workspaces/:workspaceId/sessions", async (request) => {
-		const { workspaceId } = request.params as { workspaceId: string };
-		return sessionService.list(workspaceId);
+	app.get("/repositories/:repositoryId/sessions", async (request) => {
+		const { repositoryId } = request.params as { repositoryId: string };
+		return sessionService.list(repositoryId);
 	});
 
 	app.get("/sessions/:id", async (request, reply) => {

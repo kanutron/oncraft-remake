@@ -54,7 +54,7 @@ export class GitWatcher {
 			const lastBranch = this.lastBranch.get(path);
 
 			if (lastBranch && currentBranch !== lastBranch) {
-				this.eventBus.emit(path, "git:branch-changed", {
+				this.eventBus.emit(path, "repository:git-changed", {
 					path,
 					from: lastBranch,
 					to: currentBranch,
