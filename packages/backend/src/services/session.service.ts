@@ -54,6 +54,12 @@ export class SessionService {
 				type: string;
 				[key: string]: unknown;
 			};
+			if (msg.type === "bridge:error") {
+				const session = this.store.getSession(msg.sessionId);
+				if (session && session.state === "active") {
+					this.setState(msg.sessionId, "error");
+				}
+			}
 			if (msg.type === "result") {
 				const { sessionId, costUsd, usage } = msg as {
 					sessionId: string;

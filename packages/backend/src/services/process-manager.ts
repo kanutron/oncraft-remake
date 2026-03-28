@@ -37,6 +37,9 @@ export class ProcessManager {
 		// Read stdout line by line and emit events
 		this.readLines(sessionId, proc.stdout as ReadableStream<Uint8Array>);
 
+		// Capture stderr and forward as bridge:stderr events
+		this.readStderr(sessionId, proc.stderr as ReadableStream<Uint8Array>);
+
 		// Handle process exit
 		proc.exited.then((code) => {
 			this.processes.delete(sessionId);
@@ -90,6 +93,41 @@ export class ProcessManager {
 			this.stop(id),
 		);
 		await Promise.allSettled(promises);
+	}
+
+	private async readStderr(
+		sessionId: string,
+		stderr: ReadableStream<Uint8Array>,
+	): Promise<void> {
+		const decoder = new TextDecoder();
+		const reader = stderr.getReader();
+		let buffer = "";
+
+		try {
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+
+				let newlineIdx = buffer.indexOf("\n");
+				while (newlineIdx !== -1) {
+					const line = buffer.slice(0, newlineIdx).trim();
+					buffer = buffer.slice(newlineIdx + 1);
+					if (line) {
+						const managed = this.processes.get(sessionId);
+						const path = managed?.cwd ?? "*";
+						this.eventBus.emit(path, "session:message", {
+							sessionId,
+							type: "bridge:stderr",
+							message: line,
+						});
+					}
+					newlineIdx = buffer.indexOf("\n");
+				}
+			}
+		} catch {
+			// Stream closed
+		}
 	}
 
 	private async readLines(
