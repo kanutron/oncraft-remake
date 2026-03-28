@@ -45,13 +45,33 @@ export class GitService {
 		worktreePath: string,
 	): Promise<void> {
 		const branches = await this.listBranches(repoPath);
-		if (branches.all.includes(branch)) {
-			await this.gitFor(repoPath).raw([
-				"worktree",
-				"add",
-				worktreePath,
-				branch,
-			]);
+		const branchExists = branches.all.includes(branch);
+
+		if (branchExists) {
+			try {
+				await this.gitFor(repoPath).raw([
+					"worktree",
+					"add",
+					worktreePath,
+					branch,
+				]);
+			} catch (err) {
+				const msg = String(err);
+				if (msg.includes("already used by worktree")) {
+					// Branch is checked out elsewhere — create a new branch from it
+					const worktreeBranch = `oncraft/${branch}/${Date.now()}`;
+					await this.gitFor(repoPath).raw([
+						"worktree",
+						"add",
+						"-b",
+						worktreeBranch,
+						worktreePath,
+						branch,
+					]);
+				} else {
+					throw err;
+				}
+			}
 		} else {
 			await this.gitFor(repoPath).raw([
 				"worktree",
