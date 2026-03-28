@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { Session, SessionState, Workspace } from "../types";
+import type { Session, SessionState, Repository } from "../types";
 
 export class Store {
 	private db: Database;
@@ -12,7 +12,7 @@ export class Store {
 
 	private migrate(): void {
 		this.db.exec(`
-			CREATE TABLE IF NOT EXISTS workspaces (
+			CREATE TABLE IF NOT EXISTS repositories (
 				id TEXT PRIMARY KEY,
 				path TEXT NOT NULL UNIQUE,
 				name TEXT NOT NULL,
@@ -23,7 +23,7 @@ export class Store {
 		this.db.exec(`
 			CREATE TABLE IF NOT EXISTS sessions (
 				id TEXT PRIMARY KEY,
-				workspaceId TEXT NOT NULL,
+				repositoryId TEXT NOT NULL,
 				claudeSessionId TEXT,
 				name TEXT NOT NULL,
 				sourceBranch TEXT NOT NULL,
@@ -36,47 +36,41 @@ export class Store {
 				costUsd REAL NOT NULL DEFAULT 0,
 				inputTokens INTEGER NOT NULL DEFAULT 0,
 				outputTokens INTEGER NOT NULL DEFAULT 0,
-				FOREIGN KEY (workspaceId) REFERENCES workspaces(id)
+				FOREIGN KEY (repositoryId) REFERENCES repositories(id)
 			)
 		`);
-		// Migration: add workBranch column if missing
-		try {
-			this.db.exec("ALTER TABLE sessions ADD COLUMN workBranch TEXT");
-		} catch {
-			// Column already exists
-		}
 	}
 
-	// --- Workspaces ---
+	// --- Repositories ---
 
-	createWorkspace(ws: Workspace): void {
+	createRepository(repo: Repository): void {
 		this.db
 			.prepare(
-				"INSERT INTO workspaces (id, path, name, createdAt, lastOpenedAt) VALUES (?, ?, ?, ?, ?)",
+				"INSERT INTO repositories (id, path, name, createdAt, lastOpenedAt) VALUES (?, ?, ?, ?, ?)",
 			)
-			.run(ws.id, ws.path, ws.name, ws.createdAt, ws.lastOpenedAt);
+			.run(repo.id, repo.path, repo.name, repo.createdAt, repo.lastOpenedAt);
 	}
 
-	getWorkspace(id: string): Workspace | null {
+	getRepository(id: string): Repository | null {
 		return this.db
-			.prepare("SELECT * FROM workspaces WHERE id = ?")
-			.get(id) as Workspace | null;
+			.prepare("SELECT * FROM repositories WHERE id = ?")
+			.get(id) as Repository | null;
 	}
 
-	listWorkspaces(): Workspace[] {
+	listRepositories(): Repository[] {
 		return this.db
-			.prepare("SELECT * FROM workspaces ORDER BY lastOpenedAt DESC")
-			.all() as Workspace[];
+			.prepare("SELECT * FROM repositories ORDER BY lastOpenedAt DESC")
+			.all() as Repository[];
 	}
 
-	updateWorkspaceLastOpened(id: string, lastOpenedAt: string): void {
+	updateRepositoryLastOpened(id: string, lastOpenedAt: string): void {
 		this.db
-			.prepare("UPDATE workspaces SET lastOpenedAt = ? WHERE id = ?")
+			.prepare("UPDATE repositories SET lastOpenedAt = ? WHERE id = ?")
 			.run(lastOpenedAt, id);
 	}
 
-	deleteWorkspace(id: string): void {
-		this.db.prepare("DELETE FROM workspaces WHERE id = ?").run(id);
+	deleteRepository(id: string): void {
+		this.db.prepare("DELETE FROM repositories WHERE id = ?").run(id);
 	}
 
 	// --- Sessions ---
@@ -84,13 +78,13 @@ export class Store {
 	createSession(s: Session): void {
 		this.db
 			.prepare(
-				`INSERT INTO sessions (id, workspaceId, claudeSessionId, name, sourceBranch, workBranch, targetBranch,
+				`INSERT INTO sessions (id, repositoryId, claudeSessionId, name, sourceBranch, workBranch, targetBranch,
 				worktreePath, state, createdAt, lastActivityAt, costUsd, inputTokens, outputTokens)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				s.id,
-				s.workspaceId,
+				s.repositoryId,
 				s.claudeSessionId,
 				s.name,
 				s.sourceBranch,
@@ -112,12 +106,12 @@ export class Store {
 			.get(id) as Session | null;
 	}
 
-	listSessions(workspaceId: string): Session[] {
+	listSessions(repositoryId: string): Session[] {
 		return this.db
 			.prepare(
-				"SELECT * FROM sessions WHERE workspaceId = ? ORDER BY createdAt DESC",
+				"SELECT * FROM sessions WHERE repositoryId = ? ORDER BY createdAt DESC",
 			)
-			.all(workspaceId) as Session[];
+			.all(repositoryId) as Session[];
 	}
 
 	updateSessionState(id: string, state: SessionState): void {
@@ -168,10 +162,10 @@ export class Store {
 		this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
 	}
 
-	deleteSessionsForWorkspace(workspaceId: string): void {
+	deleteSessionsForRepository(repositoryId: string): void {
 		this.db
-			.prepare("DELETE FROM sessions WHERE workspaceId = ?")
-			.run(workspaceId);
+			.prepare("DELETE FROM sessions WHERE repositoryId = ?")
+			.run(repositoryId);
 	}
 
 	close(): void {
