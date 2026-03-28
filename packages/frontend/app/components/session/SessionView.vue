@@ -12,9 +12,7 @@ const session = computed(() => sessionStore.sessions.get(props.sessionId) ?? nul
   <div v-if="session" class="flex flex-col h-full">
     <SessionHeader :session="session" />
 
-    <div class="flex-1 overflow-hidden">
-      <ChatHistory :session-id="session.id" />
-    </div>
+    <ChatHistory :session-id="session.id" class="flex-1 min-h-0" />
 
     <PromptBox :session-id="session.id" />
   </div>
