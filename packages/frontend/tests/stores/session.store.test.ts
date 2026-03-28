@@ -1,0 +1,352 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import type { Session, SessionState } from '~/types'
+
+// Import the store — auto-imports are polyfilled by tests/setup.ts
+import { useSessionStore } from '~/stores/session.store'
+
+/* ── Helpers ──────────────────────────────────────────────────────── */
+
+function makeSession(overrides: Partial<Session> = {}): Session {
+  return {
+    id: overrides.id ?? crypto.randomUUID(),
+    workspaceId: 'ws-1',
+    claudeSessionId: null,
+    name: 'test-session',
+    sourceBranch: 'main',
+    targetBranch: 'feat/test',
+    worktreePath: null,
+    state: 'idle',
+    createdAt: '2025-01-01T00:00:00Z',
+    lastActivityAt: '2025-01-01T00:00:00Z',
+    costUsd: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    ...overrides,
+  }
+}
+
+/* ── Tests ────────────────────────────────────────────────────────── */
+
+describe('useSessionStore', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.restoreAllMocks()
+  })
+
+  /* ── create ────────────────────────────────────────────────────── */
+
+  describe('create()', () => {
+    it('adds a session and sets it active for the workspace', async () => {
+      const session = makeSession({ id: 'sess-1', workspaceId: 'ws-1' })
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce(session))
+
+      const store = useSessionStore()
+      const result = await store.create('ws-1', {
+        name: 'test',
+        sourceBranch: 'main',
+        targetBranch: 'feat/test',
+        useWorktree: false,
+      })
+
+      expect(result).toEqual(session)
+      expect(store.sessions.get('sess-1')).toEqual(session)
+      expect(store.activeSessionId('ws-1')).toBe('sess-1')
+    })
+
+    it('sends POST to the correct endpoint with body', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(makeSession())
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      const opts = {
+        name: 'my-session',
+        sourceBranch: 'main',
+        targetBranch: 'feat/work',
+        useWorktree: true,
+      }
+      await store.create('ws-42', opts)
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://test:3001/workspaces/ws-42/sessions',
+        { method: 'POST', body: opts },
+      )
+    })
+  })
+
+  /* ── fetchForWorkspace ─────────────────────────────────────────── */
+
+  describe('fetchForWorkspace()', () => {
+    it('populates sessions from the API', async () => {
+      const s1 = makeSession({ id: 'sess-1', workspaceId: 'ws-1' })
+      const s2 = makeSession({ id: 'sess-2', workspaceId: 'ws-1' })
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce([s1, s2]))
+
+      const store = useSessionStore()
+      await store.fetchForWorkspace('ws-1')
+
+      expect(store.sessions.size).toBe(2)
+      expect(store.sessions.get('sess-1')).toEqual(s1)
+      expect(store.sessions.get('sess-2')).toEqual(s2)
+    })
+
+    it('calls the correct endpoint', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce([])
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.fetchForWorkspace('ws-7')
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://test:3001/workspaces/ws-7/sessions',
+      )
+    })
+
+    it('merges with existing sessions (does not clear others)', async () => {
+      const existing = makeSession({ id: 'sess-existing', workspaceId: 'ws-other' })
+      const fetched = makeSession({ id: 'sess-new', workspaceId: 'ws-1' })
+      vi.stubGlobal('$fetch', vi.fn().mockResolvedValueOnce([fetched]))
+
+      const store = useSessionStore()
+      store.sessions.set('sess-existing', existing)
+
+      await store.fetchForWorkspace('ws-1')
+
+      expect(store.sessions.size).toBe(2)
+      expect(store.sessions.has('sess-existing')).toBe(true)
+      expect(store.sessions.has('sess-new')).toBe(true)
+    })
+  })
+
+  /* ── appendMessage ─────────────────────────────────────────────── */
+
+  describe('appendMessage()', () => {
+    it('accumulates messages for a session', () => {
+      const store = useSessionStore()
+
+      store.appendMessage('sess-1', { type: 'text', text: 'hello' })
+      store.appendMessage('sess-1', { type: 'text', text: 'world' })
+
+      const msgs = store.messagesForSession('sess-1')
+      expect(msgs).toHaveLength(2)
+      expect(msgs[0].raw).toEqual({ type: 'text', text: 'hello' })
+      expect(msgs[1].raw).toEqual({ type: 'text', text: 'world' })
+    })
+
+    it('assigns unique ids and sessionId to each message', () => {
+      const store = useSessionStore()
+
+      store.appendMessage('sess-1', { type: 'text' })
+      store.appendMessage('sess-1', { type: 'text' })
+
+      const msgs = store.messagesForSession('sess-1')
+      expect(msgs[0].id).toBeTruthy()
+      expect(msgs[1].id).toBeTruthy()
+      expect(msgs[0].id).not.toBe(msgs[1].id)
+      expect(msgs[0].sessionId).toBe('sess-1')
+    })
+
+    it('assigns a timestamp to each message', () => {
+      const store = useSessionStore()
+      store.appendMessage('sess-1', { type: 'text' })
+
+      const msgs = store.messagesForSession('sess-1')
+      expect(msgs[0].timestamp).toBeTruthy()
+      // Should be a valid ISO string
+      expect(new Date(msgs[0].timestamp).toISOString()).toBe(msgs[0].timestamp)
+    })
+
+    it('keeps messages for different sessions separate', () => {
+      const store = useSessionStore()
+
+      store.appendMessage('sess-1', { text: 'a' })
+      store.appendMessage('sess-2', { text: 'b' })
+
+      expect(store.messagesForSession('sess-1')).toHaveLength(1)
+      expect(store.messagesForSession('sess-2')).toHaveLength(1)
+      expect(store.messagesForSession('sess-1')[0].raw).toEqual({ text: 'a' })
+      expect(store.messagesForSession('sess-2')[0].raw).toEqual({ text: 'b' })
+    })
+  })
+
+  /* ── updateState ───────────────────────────────────────────────── */
+
+  describe('updateState()', () => {
+    it('updates the session state', () => {
+      const store = useSessionStore()
+      const session = makeSession({ id: 'sess-1', state: 'idle' })
+      store.sessions.set('sess-1', session)
+
+      store.updateState('sess-1', 'active')
+
+      expect(store.sessions.get('sess-1')!.state).toBe('active')
+    })
+
+    it('handles all valid session states', () => {
+      const store = useSessionStore()
+      const states: SessionState[] = ['idle', 'starting', 'active', 'stopped', 'error', 'completed']
+
+      for (const state of states) {
+        const session = makeSession({ id: 'sess-1', state: 'idle' })
+        store.sessions.set('sess-1', session)
+        store.updateState('sess-1', state)
+        expect(store.sessions.get('sess-1')!.state).toBe(state)
+      }
+    })
+
+    it('is a no-op when the session does not exist', () => {
+      const store = useSessionStore()
+      // Should not throw
+      store.updateState('nonexistent', 'active')
+      expect(store.sessions.size).toBe(0)
+    })
+  })
+
+  /* ── sessionsForWorkspace ──────────────────────────────────────── */
+
+  describe('sessionsForWorkspace()', () => {
+    it('filters sessions by workspaceId', () => {
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', workspaceId: 'ws-1' }))
+      store.sessions.set('s2', makeSession({ id: 's2', workspaceId: 'ws-2' }))
+      store.sessions.set('s3', makeSession({ id: 's3', workspaceId: 'ws-1' }))
+
+      const result = store.sessionsForWorkspace('ws-1')
+      expect(result).toHaveLength(2)
+      expect(result.map(s => s.id).sort()).toEqual(['s1', 's3'])
+    })
+
+    it('returns empty array for unknown workspace', () => {
+      const store = useSessionStore()
+      expect(store.sessionsForWorkspace('ws-unknown')).toEqual([])
+    })
+
+    it('sorts by lastActivityAt descending (most recent first)', () => {
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', workspaceId: 'ws-1', lastActivityAt: '2024-01-01T00:00:00Z' }))
+      store.sessions.set('s2', makeSession({ id: 's2', workspaceId: 'ws-1', lastActivityAt: '2025-06-01T00:00:00Z' }))
+      store.sessions.set('s3', makeSession({ id: 's3', workspaceId: 'ws-1', lastActivityAt: '2025-03-01T00:00:00Z' }))
+
+      const result = store.sessionsForWorkspace('ws-1')
+      expect(result.map(s => s.id)).toEqual(['s2', 's3', 's1'])
+    })
+  })
+
+  /* ── messagesForSession ────────────────────────────────────────── */
+
+  describe('messagesForSession()', () => {
+    it('returns messages for the given session', () => {
+      const store = useSessionStore()
+      store.appendMessage('sess-1', { text: 'hello' })
+      store.appendMessage('sess-1', { text: 'world' })
+
+      const msgs = store.messagesForSession('sess-1')
+      expect(msgs).toHaveLength(2)
+    })
+
+    it('returns empty array for session with no messages', () => {
+      const store = useSessionStore()
+      expect(store.messagesForSession('nonexistent')).toEqual([])
+    })
+  })
+
+  /* ── activeSessionId ───────────────────────────────────────────── */
+
+  describe('activeSessionId()', () => {
+    it('returns the active session for a workspace', () => {
+      const store = useSessionStore()
+      store.setActive('ws-1', 'sess-5')
+      expect(store.activeSessionId('ws-1')).toBe('sess-5')
+    })
+
+    it('returns null when no session is active for the workspace', () => {
+      const store = useSessionStore()
+      expect(store.activeSessionId('ws-unknown')).toBeNull()
+    })
+  })
+
+  /* ── setActive ─────────────────────────────────────────────────── */
+
+  describe('setActive()', () => {
+    it('sets the active session for a workspace', () => {
+      const store = useSessionStore()
+      store.setActive('ws-1', 'sess-a')
+      expect(store.activeSessionId('ws-1')).toBe('sess-a')
+
+      store.setActive('ws-1', 'sess-b')
+      expect(store.activeSessionId('ws-1')).toBe('sess-b')
+    })
+
+    it('supports different active sessions per workspace', () => {
+      const store = useSessionStore()
+      store.setActive('ws-1', 'sess-a')
+      store.setActive('ws-2', 'sess-b')
+
+      expect(store.activeSessionId('ws-1')).toBe('sess-a')
+      expect(store.activeSessionId('ws-2')).toBe('sess-b')
+    })
+  })
+
+  /* ── send ──────────────────────────────────────────────────────── */
+
+  describe('send()', () => {
+    it('sends POST to the correct endpoint', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(undefined)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.send('sess-1', 'hello world')
+
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/send', {
+        method: 'POST',
+        body: { message: 'hello world' },
+      })
+    })
+
+    it('forwards optional model and effort', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(undefined)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.send('sess-1', 'hello', { model: 'opus', effort: 'high' })
+
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/send', {
+        method: 'POST',
+        body: { message: 'hello', model: 'opus', effort: 'high' },
+      })
+    })
+  })
+
+  /* ── reply ─────────────────────────────────────────────────────── */
+
+  describe('reply()', () => {
+    it('sends POST with toolUseID and decision', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(undefined)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.reply('sess-1', 'tool-123', 'allow')
+
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/reply', {
+        method: 'POST',
+        body: { toolUseID: 'tool-123', decision: 'allow' },
+      })
+    })
+  })
+
+  /* ── interrupt ─────────────────────────────────────────────────── */
+
+  describe('interrupt()', () => {
+    it('sends POST to the interrupt endpoint', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(undefined)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.interrupt('sess-1')
+
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/interrupt', {
+        method: 'POST',
+      })
+    })
+  })
+})
