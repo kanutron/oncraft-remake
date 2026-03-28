@@ -8,15 +8,18 @@ const props = defineProps<{
 const data = computed(() => (props.message.raw.data ?? props.message.raw) as Record<string, unknown>)
 
 const contentBlocks = computed(() => {
-  const content = data.value.content
+  // SDK wraps content inside message.content
+  const sdkMessage = data.value.message as Record<string, unknown> | undefined
+  const content = sdkMessage?.content ?? data.value.content
+
   if (typeof content === 'string') {
     return [{ type: 'text', text: content }]
   }
   if (Array.isArray(content)) {
     return content as Record<string, unknown>[]
   }
-  // Fallback: treat the whole data as a single text block
-  const text = (data.value.text ?? data.value.message) as string | undefined
+  // Fallback: treat as a single text block
+  const text = (data.value.text ?? (typeof sdkMessage === 'string' ? sdkMessage : undefined)) as string | undefined
   if (text) {
     return [{ type: 'text', text }]
   }

@@ -45,13 +45,17 @@ function resolveMessageType(message: ChatMessage): string {
   const event = raw.event as string | undefined
   if (event === 'session:tool-confirmation') return 'tool_confirmation'
 
-  // SDK message types
+  // SDK message types — check type field first
   const type = (data.type ?? raw.type) as string | undefined
   if (type === 'tool_confirmation') return 'tool_confirmation'
+  if (type === 'assistant') return 'assistant'
+  if (type === 'user') return 'user'
   if (type === 'system') return 'system'
+  if (type === 'result') return 'result'
+  if (type === 'bridge:ready' || type === 'bridge:stderr' || type === 'rate_limit_event') return 'hidden'
   if (type === 'bridge:error') return 'bridge:error'
 
-  // Role-based dispatch
+  // Role-based fallback
   const role = (data.role ?? raw.role) as string | undefined
   if (role === 'assistant') return 'assistant'
   if (role === 'user') return 'user'
@@ -99,6 +103,9 @@ function resolveMessageType(message: ChatMessage): string {
           v-else-if="resolveMessageType(message) === 'bridge:error'"
           :message="message"
         />
+
+        <!-- hidden types: bridge:ready, rate_limit_event, bridge:stderr -->
+        <template v-else-if="resolveMessageType(message) === 'hidden'" />
 
         <ChatGenericMessage
           v-else
