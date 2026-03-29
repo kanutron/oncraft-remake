@@ -9,12 +9,12 @@
 
 ```
 GIVEN backend and frontend are running
-WHEN GET /health on :3001
+WHEN GET /health on :3101
 THEN response is { status: "ok" }
-AND GET :3000 returns 200
+AND GET :3100 returns 200
 ```
 
-**Playwright pattern:** Navigate to `http://localhost:3000`, assert page loads. Hit `/health` API endpoint.
+**Playwright pattern:** Navigate to `http://localhost:3100`, assert page loads. Hit `/health` API endpoint.
 
 ### 2. Workspace Auto-Activation
 
@@ -121,5 +121,5 @@ AND the branch can be deleted
 - **Timing:** Claude agent responses take 10-30 seconds; use generous timeouts (40s+)
 - **Message persistence:** Messages are in-memory only — page reload clears them
 - **HMR:** Backend uses `bun --watch`; frontend uses Nuxt HMR — code changes auto-reload but may cause brief disconnections
-- **Process cleanup:** Always verify ports 3000/3001 are free before/after tests via `lsof -ti:PORT`
+- **Process cleanup:** Always verify ports 3100/3101 are free before/after tests via `lsof -ti:PORT`
 - **Worktree location:** Created at `../.oncraft-worktrees/<branch-slug>` relative to workspace path

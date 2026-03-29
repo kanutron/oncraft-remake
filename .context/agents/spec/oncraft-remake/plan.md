@@ -261,12 +261,12 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: true },
   devServer: {
-    port: 3000,
+    port: 3100,
   },
   runtimeConfig: {
     public: {
-      backendUrl: 'http://localhost:3001',
-      wsUrl: 'ws://localhost:3001/ws',
+      backendUrl: 'http://localhost:3101',
+      wsUrl: 'ws://localhost:3101/ws',
     },
   },
 })
@@ -460,7 +460,7 @@ const app = Fastify({ logger: true })
 app.get('/health', async () => ({ status: 'ok' }))
 
 const start = async () => {
-  const port = Number(process.env.PORT) || 3001
+  const port = Number(process.env.PORT) || 3101
   await app.listen({ port, host: '0.0.0.0' })
   console.log(`OnCraft backend listening on port ${port}`)
 }
@@ -471,7 +471,7 @@ start()
 - [ ] **Step 3: Verify server starts**
 
 Run: `cd packages/backend && bun src/server.ts`
-Expected: Server starts on port 3001, `GET /health` returns `{"status":"ok"}`
+Expected: Server starts on port 3101, `GET /health` returns `{"status":"ok"}`
 
 - [ ] **Step 4: Commit**
 
@@ -2956,7 +2956,7 @@ Update `packages/backend/src/server.ts` to:
 - [ ] **Step 3: Verify full backend starts**
 
 Run: `cd packages/backend && bun src/server.ts`
-Expected: Server starts on :3001, `GET /health` and `GET /workspaces` work
+Expected: Server starts on :3101, `GET /health` and `GET /workspaces` work
 
 - [ ] **Step 4: Commit**
 
@@ -3526,7 +3526,7 @@ Expected: Zero errors
 - [ ] **Step 4: Verify dev mode works**
 
 Run: `task dev` (starts both backend and frontend)
-Expected: Backend on :3001, Frontend on :3000, frontend loads and shows workspace selector
+Expected: Backend on :3101, Frontend on :3100, frontend loads and shows workspace selector
 
 - [ ] **Step 5: Final commit**
 

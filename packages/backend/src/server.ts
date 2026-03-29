@@ -20,7 +20,7 @@ const app = Fastify({ logger: true });
 
 // Plugins
 await app.register(fastifyCors, {
-	origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+	origin: process.env.CORS_ORIGIN || "http://localhost:3100",
 });
 await app.register(fastifyWebsocket);
 
@@ -57,6 +57,6 @@ app.addHook("onClose", async () => {
 });
 
 // Start
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3101;
 await app.listen({ port, host: "0.0.0.0" });
 console.log(`OnCraft backend listening on port ${port}`);

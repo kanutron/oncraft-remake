@@ -23,8 +23,8 @@ import { defineStore, setActivePinia, createPinia } from 'pinia'
 // useRuntimeConfig — returns a shape matching nuxt.config.ts
 ;(globalThis as any).useRuntimeConfig = () => ({
   public: {
-    backendUrl: 'http://test:3001',
-    wsUrl: 'ws://test:3001/ws',
+    backendUrl: 'http://test:3101',
+    wsUrl: 'ws://test:3101/ws',
   },
 })
 

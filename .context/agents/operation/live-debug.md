@@ -20,8 +20,8 @@ This operation can be self-invoked when the agent determines it needs a running 
 ### 1.1 Check for Existing Processes
 
 ```bash
-lsof -ti:3000 2>/dev/null
-lsof -ti:3001 2>/dev/null
+lsof -ti:3100 2>/dev/null
+lsof -ti:3101 2>/dev/null
 ```
 
 If either port is occupied:
@@ -33,8 +33,8 @@ If either port is occupied:
 If the user approves, kill the occupying processes:
 
 ```bash
-kill $(lsof -ti:3000) 2>/dev/null
-kill $(lsof -ti:3001) 2>/dev/null
+kill $(lsof -ti:3100) 2>/dev/null
+kill $(lsof -ti:3101) 2>/dev/null
 ```
 
 Wait briefly and verify ports are free before continuing.
@@ -78,8 +78,8 @@ echo $! > $PROJECT_ROOT/.local/debug-logs/frontend.pid
 
 Wait for both servers to be ready before proceeding:
 
-- **Backend** — grep for `OnCraft backend listening on port` in `backend.log`, or curl `http://localhost:3001`
-- **Frontend** — grep for `Local:` in `frontend.log`, or curl `http://localhost:3000`
+- **Backend** — grep for `OnCraft backend listening on port` in `backend.log`, or curl `http://localhost:3101`
+- **Frontend** — grep for `Local:` in `frontend.log`, or curl `http://localhost:3100`
 
 Timeout after 30 seconds. If either server fails to start, check the logs and report the error.
 
@@ -90,7 +90,7 @@ Timeout after 30 seconds. If either server fails to start, check the logs and re
 Use Playwright MCP to open the application:
 
 ```
-playwright_navigate → http://localhost:3000
+playwright_navigate → http://localhost:3100
 ```
 
 The browser is now ready for task-driven interaction. What you do next depends on the task at hand (reproduce a bug, explore the UI, verify a fix, etc.).
@@ -132,7 +132,7 @@ Use Playwright MCP to monitor failed API calls:
 - `playwright_expect_response` — wait for a specific response after an action
 - `playwright_assert_response` — verify response status codes
 
-Watch for 4xx/5xx responses, especially on API calls to `:3001`.
+Watch for 4xx/5xx responses, especially on API calls to `:3101`.
 
 ### 4.4 Screenshots
 
@@ -166,15 +166,15 @@ kill $(cat $PROJECT_ROOT/.local/debug-logs/frontend.pid) 2>/dev/null
 ### 5.3 Verify Clean Shutdown
 
 ```bash
-lsof -ti:3000 2>/dev/null
-lsof -ti:3001 2>/dev/null
+lsof -ti:3100 2>/dev/null
+lsof -ti:3101 2>/dev/null
 ```
 
 If any process remains, force kill:
 
 ```bash
-kill -9 $(lsof -ti:3000) 2>/dev/null
-kill -9 $(lsof -ti:3001) 2>/dev/null
+kill -9 $(lsof -ti:3100) 2>/dev/null
+kill -9 $(lsof -ti:3101) 2>/dev/null
 ```
 
 ### 5.4 Keep Artifacts

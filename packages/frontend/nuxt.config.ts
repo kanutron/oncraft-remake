@@ -4,12 +4,12 @@ export default defineNuxtConfig({
   ssr: false,
   devtools: { enabled: true },
   devServer: {
-    port: 3000,
+    port: 3100,
   },
   runtimeConfig: {
     public: {
-      backendUrl: 'http://localhost:3001',
-      wsUrl: 'ws://localhost:3001/ws',
+      backendUrl: 'http://localhost:3101',
+      wsUrl: 'ws://localhost:3101/ws',
     },
   },
 })

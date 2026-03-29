@@ -50,7 +50,7 @@ describe('useRepositoryStore', () => {
       const store = useRepositoryStore()
       await store.fetchAll()
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/repositories')
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/repositories')
     })
 
     it('replaces existing repositories on re-fetch', async () => {
@@ -95,7 +95,7 @@ describe('useRepositoryStore', () => {
       const store = useRepositoryStore()
       await store.open('/path/to/repo', 'my-repo')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/repositories', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/repositories', {
         method: 'POST',
         body: { path: '/path/to/repo', name: 'my-repo' },
       })
@@ -108,7 +108,7 @@ describe('useRepositoryStore', () => {
       const store = useRepositoryStore()
       await store.open('/path/to/repo')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/repositories', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/repositories', {
         method: 'POST',
         body: { path: '/path/to/repo', name: undefined },
       })
@@ -138,7 +138,7 @@ describe('useRepositoryStore', () => {
 
       await store.close('ws-1')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/repositories/ws-1', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/repositories/ws-1', {
         method: 'DELETE',
       })
     })

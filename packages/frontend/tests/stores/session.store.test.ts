@@ -67,7 +67,7 @@ describe('useSessionStore', () => {
       await store.create('ws-42', opts)
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://test:3001/repositories/ws-42/sessions',
+        'http://test:3101/repositories/ws-42/sessions',
         { method: 'POST', body: opts },
       )
     })
@@ -97,7 +97,7 @@ describe('useSessionStore', () => {
       await store.fetchForRepository('ws-7')
 
       expect(fetchMock).toHaveBeenCalledWith(
-        'http://test:3001/repositories/ws-7/sessions',
+        'http://test:3101/repositories/ws-7/sessions',
       )
     })
 
@@ -296,7 +296,7 @@ describe('useSessionStore', () => {
       const store = useSessionStore()
       await store.send('sess-1', 'hello world')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/send', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/sessions/sess-1/send', {
         method: 'POST',
         body: { message: 'hello world' },
       })
@@ -309,7 +309,7 @@ describe('useSessionStore', () => {
       const store = useSessionStore()
       await store.send('sess-1', 'hello', { model: 'opus', effort: 'high' })
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/send', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/sessions/sess-1/send', {
         method: 'POST',
         body: { message: 'hello', model: 'opus', effort: 'high' },
       })
@@ -326,7 +326,7 @@ describe('useSessionStore', () => {
       const store = useSessionStore()
       await store.reply('sess-1', 'tool-123', 'allow')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/reply', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/sessions/sess-1/reply', {
         method: 'POST',
         body: { toolUseID: 'tool-123', decision: 'allow' },
       })
@@ -343,7 +343,7 @@ describe('useSessionStore', () => {
       const store = useSessionStore()
       await store.interrupt('sess-1')
 
-      expect(fetchMock).toHaveBeenCalledWith('http://test:3001/sessions/sess-1/interrupt', {
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/sessions/sess-1/interrupt', {
         method: 'POST',
       })
     })
