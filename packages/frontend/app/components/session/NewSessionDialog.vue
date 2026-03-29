@@ -19,6 +19,19 @@ const workBranch = ref('')
 const loading = ref(false)
 const error = ref('')
 
+const repositoryIdRef = computed(() => props.repositoryId)
+const { items: branchItems, loading: branchLoading } = useBranchSuggestions(repositoryIdRef)
+
+// Pre-select HEAD branch as source when branches load
+watch(branchItems, (items) => {
+  if (!sourceBranch.value && items.length > 0) {
+    const head = items.find(i => i.chip)
+    if (head) {
+      sourceBranch.value = head.label ?? ''
+    }
+  }
+})
+
 const isValid = computed(() => {
   if (!name.value.trim() || !sourceBranch.value.trim()) return false
   if (workIsolated.value && !workBranch.value.trim()) return false
@@ -82,21 +95,27 @@ async function submit() {
 
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Source branch</label>
-          <UInput
+          <UInputMenu
             v-model="sourceBranch"
-            placeholder="main"
+            :items="branchItems"
+            :loading="branchLoading"
             icon="i-lucide-git-branch"
-            required
+            placeholder="main"
+            value-key="label"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Starting point for this session (HEAD)</span>
         </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Target branch</label>
-          <UInput
+          <UInputMenu
             v-model="targetBranch"
-            :placeholder="sourceBranch || 'defaults to source'"
+            :items="branchItems"
+            :loading="branchLoading"
             icon="i-lucide-git-merge"
+            :placeholder="sourceBranch || 'defaults to source'"
+            value-key="label"
+            :create-item="{ position: 'bottom', when: 'always' }"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to</span>
         </div>
@@ -110,11 +129,14 @@ async function submit() {
         <template v-if="workIsolated">
           <div class="flex flex-col gap-1">
             <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch</label>
-            <UInput
+            <UInputMenu
               v-model="workBranch"
-              placeholder="feat/my-feature"
+              :items="branchItems"
+              :loading="branchLoading"
               icon="i-lucide-git-fork"
-              required
+              placeholder="feat/my-feature"
+              value-key="label"
+              :create-item="{ position: 'bottom', when: 'always' }"
             />
             <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits (created if it doesn't exist)</span>
           </div>
