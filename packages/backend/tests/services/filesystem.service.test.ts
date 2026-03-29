@@ -76,12 +76,22 @@ describe("FilesystemService", () => {
 	});
 
 	test("listDirs rejects paths outside root", async () => {
-		expect(service.listDirs("/etc")).rejects.toThrow("FORBIDDEN");
+		await expect(service.listDirs("/etc")).rejects.toThrow("FORBIDDEN");
 	});
 
 	test("listDirs rejects nonexistent paths", async () => {
-		expect(service.listDirs(join(testRoot, "nonexistent"))).rejects.toThrow(
-			"NOT_FOUND",
-		);
+		await expect(
+			service.listDirs(join(testRoot, "nonexistent")),
+		).rejects.toThrow("NOT_FOUND");
+	});
+
+	test("listDirs rejects sibling path with shared prefix", async () => {
+		const sibling = testRoot + "-sibling";
+		mkdirSync(sibling, { recursive: true });
+		try {
+			await expect(service.listDirs(sibling)).rejects.toThrow("FORBIDDEN");
+		} finally {
+			rmSync(sibling, { recursive: true, force: true });
+		}
 	});
 });

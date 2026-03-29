@@ -22,7 +22,8 @@ export class FilesystemService {
 	async listDirs(path: string): Promise<ListDirsResult> {
 		const resolved = resolve(path);
 
-		if (!resolved.startsWith(this.root)) {
+		const rootWithSep = this.root.endsWith("/") ? this.root : this.root + "/";
+		if (!resolved.startsWith(rootWithSep) && resolved !== this.root) {
 			throw Object.assign(new Error("FORBIDDEN: path outside allowed root"), {
 				code: "FORBIDDEN",
 			});
@@ -53,7 +54,8 @@ export class FilesystemService {
 
 		const parentDir = dirname(resolved);
 		const parent =
-			parentDir.startsWith(this.root) && parentDir !== resolved
+			(parentDir.startsWith(rootWithSep) || parentDir === this.root) &&
+			parentDir !== resolved
 				? parentDir
 				: null;
 
