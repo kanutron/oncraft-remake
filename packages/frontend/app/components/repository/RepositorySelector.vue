@@ -17,6 +17,35 @@ const repositoryStore = useRepositoryStore()
 const path = ref('')
 const name = ref('')
 const loading = ref(false)
+const nameManuallyEdited = ref(false)
+
+const { items: pathItems, loading: pathLoading, isGitRepo, lastParent, saveLastParent, resolveSelection } = usePathSuggestions(path)
+
+const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
+
+// Auto-fill name from last path segment
+watch(path, (val) => {
+  if (nameManuallyEdited.value) return
+  const segments = val.split('/').filter(Boolean)
+  name.value = segments.length > 0 ? segments[segments.length - 1] : ''
+})
+
+// Pre-fill path with last used parent when dialog opens
+watch(open, (isOpen) => {
+  if (isOpen && lastParent.value && !path.value) {
+    path.value = `${lastParent.value}/`
+  }
+})
+
+function onNameInput() {
+  nameManuallyEdited.value = true
+}
+
+// Handle path input updates — when user selects from dropdown, append trailing /
+function onPathUpdate(val: string) {
+  const resolved = resolveSelection(val)
+  path.value = resolved ?? val
+}
 
 async function submit() {
   if (!path.value.trim()) return
@@ -24,8 +53,10 @@ async function submit() {
   loading.value = true
   try {
     await repositoryStore.open(path.value.trim(), name.value.trim() || undefined)
+    saveLastParent(path.value.trim())
     path.value = ''
     name.value = ''
+    nameManuallyEdited.value = false
     open.value = false
     emit('close')
   } finally {
@@ -51,12 +82,18 @@ function cancel() {
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
-          <UInput
-            v-model="path"
+          <UInputMenu
+            :model-value="path"
+            autocomplete
+            :items="pathItems"
+            :loading="pathLoading"
+            :icon="pathIcon"
+            ignore-filter
+            value-key="value"
             placeholder="/path/to/repository"
-            icon="i-lucide-folder"
             autofocus
-            required
+            :content="{ hideWhenEmpty: true }"
+            @update:model-value="onPathUpdate"
           />
         </div>
 
@@ -66,6 +103,7 @@ function cancel() {
             v-model="name"
             placeholder="Display name"
             icon="i-lucide-tag"
+            @input="onNameInput"
           />
         </div>
 
@@ -99,12 +137,18 @@ function cancel() {
     <form class="flex flex-col gap-4" @submit.prevent="submit">
       <div class="flex flex-col gap-1">
         <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
-        <UInput
-          v-model="path"
+        <UInputMenu
+          :model-value="path"
+          autocomplete
+          :items="pathItems"
+          :loading="pathLoading"
+          :icon="pathIcon"
+          ignore-filter
+          value-key="value"
           placeholder="/path/to/repository"
-          icon="i-lucide-folder"
           autofocus
-          required
+          :content="{ hideWhenEmpty: true }"
+          @update:model-value="onPathUpdate"
         />
       </div>
 
@@ -114,6 +158,7 @@ function cancel() {
           v-model="name"
           placeholder="Display name"
           icon="i-lucide-tag"
+          @input="onNameInput"
         />
       </div>
 
