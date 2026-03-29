@@ -5,11 +5,13 @@ import Fastify from "fastify";
 import { EventBus } from "./infra/event-bus";
 import { GitWatcher } from "./infra/git-watcher";
 import { Store } from "./infra/store";
+import { registerFilesystemRoutes } from "./routes/filesystem.routes";
 import { registerGitRoutes } from "./routes/git.routes";
 import { registerProjectRoutes } from "./routes/project.routes";
 import { registerRepositoryRoutes } from "./routes/repository.routes";
 import { registerSessionRoutes } from "./routes/session.routes";
 import { registerWSRoutes } from "./routes/ws.routes";
+import { FilesystemService } from "./services/filesystem.service";
 import { GitService } from "./services/git.service";
 import { ProcessManager } from "./services/process-manager";
 import { ProjectService } from "./services/project.service";
@@ -31,6 +33,9 @@ const gitService = new GitService();
 const gitWatcher = new GitWatcher(eventBus, gitService);
 const processManager = new ProcessManager(eventBus);
 const projectService = new ProjectService(store);
+const filesystemService = new FilesystemService(
+	process.env.ONCRAFT_FS_ROOT || "~",
+);
 
 // Services
 const repositoryService = new RepositoryService(store, gitService, gitWatcher);
@@ -47,6 +52,7 @@ registerProjectRoutes(app, projectService);
 registerRepositoryRoutes(app, repositoryService);
 registerSessionRoutes(app, sessionService);
 registerGitRoutes(app, repositoryService, gitService);
+registerFilesystemRoutes(app, filesystemService);
 registerWSRoutes(app, eventBus, sessionService);
 
 // Lifecycle
