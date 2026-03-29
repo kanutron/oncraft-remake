@@ -33,11 +33,11 @@ const gitService = new GitService();
 const gitWatcher = new GitWatcher(eventBus, gitService);
 const processManager = new ProcessManager(eventBus);
 const projectService = new ProjectService(store);
+
+// Services
 const filesystemService = new FilesystemService(
 	process.env.ONCRAFT_FS_ROOT || "~",
 );
-
-// Services
 const repositoryService = new RepositoryService(store, gitService, gitWatcher);
 const sessionService = new SessionService(
 	store,

@@ -86,7 +86,7 @@ describe("FilesystemService", () => {
 	});
 
 	test("listDirs rejects sibling path with shared prefix", async () => {
-		const sibling = testRoot + "-sibling";
+		const sibling = `${testRoot}-sibling`;
 		mkdirSync(sibling, { recursive: true });
 		try {
 			await expect(service.listDirs(sibling)).rejects.toThrow("FORBIDDEN");
