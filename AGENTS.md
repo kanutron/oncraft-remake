@@ -44,6 +44,15 @@ Autonomous procedures agents can invoke or be directed to run. Located in `.cont
 5. **Specs and plans** live under `.context/agents/spec/` — never under `docs/`.
 6. **No backward compatibility** unless explicitly instructed.
 
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3101` | Backend server port |
+| `CORS_ORIGIN` | `http://localhost:3100` | Allowed CORS origin |
+| `DB_PATH` | `oncraft.db` | SQLite database path |
+| `ONCRAFT_FS_ROOT` | `~` (user home) | Root directory for the filesystem browser. Controls which paths the `GET /filesystem/list-dirs` endpoint can access. Set to `/` for sandboxed/Docker deployments |
+
 ## Key References
 
 - Design spec: `.context/agents/spec/oncraft-remake/design.md`
