@@ -23,6 +23,20 @@ const { items: pathItems, loading: pathLoading, isGitRepo, lastParent, saveLastP
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
 
+// Tab-completion: track highlighted item and select on Tab
+const highlightedValue = ref<string | null>(null)
+
+function onHighlight(payload: { value: string } | undefined) {
+  highlightedValue.value = payload?.value ?? null
+}
+
+function onTabKey(e: KeyboardEvent) {
+  if (highlightedValue.value) {
+    e.preventDefault()
+    onPathUpdate(highlightedValue.value)
+  }
+}
+
 // Auto-fill name from last path segment
 watch(path, (val) => {
   if (nameManuallyEdited.value) return
@@ -100,6 +114,8 @@ function cancel() {
             autofocus
             :content="{ hideWhenEmpty: true }"
             @update:model-value="onPathUpdate"
+            @highlight="onHighlight"
+            @keydown.tab="onTabKey"
           />
         </div>
 
@@ -155,6 +171,8 @@ function cancel() {
           autofocus
           :content="{ hideWhenEmpty: true }"
           @update:model-value="onPathUpdate"
+          @highlight="onHighlight"
+          @keydown.tab="onTabKey"
         />
       </div>
 
