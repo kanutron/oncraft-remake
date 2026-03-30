@@ -38,13 +38,19 @@ const projectService = new ProjectService(store);
 const filesystemService = new FilesystemService(
 	process.env.ONCRAFT_FS_ROOT || "~",
 );
-const repositoryService = new RepositoryService(store, gitService, gitWatcher);
+const repositoryService = new RepositoryService(
+	store,
+	gitService,
+	gitWatcher,
+	eventBus,
+);
 const sessionService = new SessionService(
 	store,
 	eventBus,
 	gitService,
 	processManager,
 );
+repositoryService.setSessionService(sessionService);
 
 // Routes
 app.get("/health", async () => ({ status: "ok" }));
