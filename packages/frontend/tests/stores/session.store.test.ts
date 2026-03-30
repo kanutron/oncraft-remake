@@ -348,4 +348,95 @@ describe('useSessionStore', () => {
       })
     })
   })
+
+  /* ── destroy ────────────────────────────────────────────────────── */
+
+  describe('destroy()', () => {
+    it('calls DELETE and removes session from store', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({ status: 204, _data: null })
+      vi.stubGlobal('$fetch', { raw: fetchMock })
+
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+      store.activeSessionByRepository.set('r1', 's1')
+
+      const result = await store.destroy('s1')
+
+      expect(result.blocked).toBe(false)
+      expect(store.sessions.has('s1')).toBe(false)
+    })
+
+    it('returns blocked with reason when server returns 409', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        status: 409,
+        _data: { error: 'has uncommitted changes', code: 'DIRTY_STATE' },
+      })
+      vi.stubGlobal('$fetch', { raw: fetchMock })
+
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+
+      const result = await store.destroy('s1')
+
+      expect(result.blocked).toBe(true)
+      if (result.blocked) {
+        expect(result.reason).toContain('uncommitted changes')
+      }
+      // Session should still be in store
+      expect(store.sessions.has('s1')).toBe(true)
+    })
+
+    it('sends DELETE with force=true query param when force option set', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({ status: 204, _data: null })
+      vi.stubGlobal('$fetch', { raw: fetchMock })
+
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+
+      await store.destroy('s1', { force: true })
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://test:3101/sessions/s1?force=true',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+  })
+
+  /* ── removeSession ──────────────────────────────────────────────── */
+
+  describe('removeSession()', () => {
+    it('removes session and its messages from store', () => {
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+      store.appendMessage('s1', { type: 'text', text: 'hello' })
+      store.activeSessionByRepository.set('r1', 's1')
+
+      store.removeSession('s1', 'r1')
+
+      expect(store.sessions.has('s1')).toBe(false)
+      expect(store.messages.has('s1')).toBe(false)
+      expect(store.activeSessionByRepository.get('r1')).toBeUndefined()
+    })
+
+    it('switches active session to next available when active is removed', () => {
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+      store.sessions.set('s2', makeSession({ id: 's2', repositoryId: 'r1' }))
+      store.activeSessionByRepository.set('r1', 's1')
+
+      store.removeSession('s1', 'r1')
+
+      expect(store.activeSessionByRepository.get('r1')).toBe('s2')
+    })
+
+    it('removes active entry when no sessions remain', () => {
+      const store = useSessionStore()
+      store.sessions.set('s1', makeSession({ id: 's1', repositoryId: 'r1' }))
+      store.activeSessionByRepository.set('r1', 's1')
+
+      store.removeSession('s1', 'r1')
+
+      expect(store.activeSessionByRepository.has('r1')).toBe(false)
+    })
+  })
 })
