@@ -65,6 +65,9 @@ async function submit() {
 }
 
 function cancel() {
+  path.value = ''
+  name.value = ''
+  nameManuallyEdited.value = false
   open.value = false
   emit('close')
 }

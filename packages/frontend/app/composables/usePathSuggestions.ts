@@ -66,8 +66,9 @@ export function usePathSuggestions(pathValue: Ref<string>) {
       })) as InputMenuItem[]
 
       // Check if current full path matches a git repo entry
+      const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path
       isGitRepo.value = data.entries.some(
-        e => e.path === path && e.isGitRepo,
+        e => e.path === normalizedPath && e.isGitRepo,
       )
     } catch {
       items.value = []
@@ -79,9 +80,11 @@ export function usePathSuggestions(pathValue: Ref<string>) {
 
   watch(pathValue, (val) => {
     if (val) {
+      rawEntries.value = []
       debouncedFetch(val)
     } else {
       items.value = []
+      rawEntries.value = []
       isGitRepo.value = false
     }
   })

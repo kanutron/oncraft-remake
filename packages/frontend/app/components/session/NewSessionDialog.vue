@@ -20,15 +20,12 @@ const loading = ref(false)
 const error = ref('')
 
 const repositoryIdRef = computed(() => props.repositoryId)
-const { items: branchItems, loading: branchLoading } = useBranchSuggestions(repositoryIdRef)
+const { items: branchItems, loading: branchLoading, headBranch } = useBranchSuggestions(repositoryIdRef)
 
 // Pre-select HEAD branch as source when branches load
-watch(branchItems, (items) => {
-  if (!sourceBranch.value && items.length > 0) {
-    const head = items.find(i => i.chip)
-    if (head) {
-      sourceBranch.value = head.label ?? ''
-    }
+watch(headBranch, (branch) => {
+  if (!sourceBranch.value && branch) {
+    sourceBranch.value = branch
   }
 })
 

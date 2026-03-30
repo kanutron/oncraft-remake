@@ -4,6 +4,7 @@ export function useBranchSuggestions(repositoryId: Ref<string>) {
   const config = useRuntimeConfig()
   const items = ref<InputMenuItem[]>([])
   const loading = ref(false)
+  const headBranch = ref('')
 
   async function refresh() {
     if (!repositoryId.value) {
@@ -17,6 +18,8 @@ export function useBranchSuggestions(repositoryId: Ref<string>) {
         all: string[]
         current: string
       }>(`${config.public.backendUrl}/repositories/${repositoryId.value}/git/branches`)
+
+      headBranch.value = data.current
 
       items.value = data.all.map(branch => ({
         label: branch,
@@ -34,5 +37,5 @@ export function useBranchSuggestions(repositoryId: Ref<string>) {
 
   watch(repositoryId, () => refresh(), { immediate: true })
 
-  return { items, loading, refresh }
+  return { items, loading, refresh, headBranch }
 }
