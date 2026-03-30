@@ -62,7 +62,8 @@ export function usePathBrowser() {
         icon: 'i-lucide-folder',
         path: e.path,
         isGitRepo: false,
-        children: [],
+        // Placeholder child so UTree renders the expand chevron
+        children: [{ label: 'Loading...', icon: 'i-lucide-loader-circle', path: `${e.path}/__loading`, isGitRepo: false }],
       }
     })
   }
