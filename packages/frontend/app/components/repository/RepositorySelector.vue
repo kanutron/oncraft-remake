@@ -68,20 +68,17 @@ watch(treeOpen, async (isOpen) => {
   // Always ensure root is loaded
   await loadTreeLevel(defaultRoot.value)
 
-  // If path is set, expand ancestors to show context
+  // If path is set, expand ancestors up to and including the last segment
   const currentPath = expandTilde(path.value.trim().replace(/\/$/, ''))
   if (currentPath && currentPath.startsWith(defaultRoot.value) && currentPath !== defaultRoot.value) {
-    // Get the parent directory (not the path itself, which might be a repo)
-    const lastSlash = currentPath.lastIndexOf('/')
-    const parentPath = lastSlash > 0 ? currentPath.slice(0, lastSlash) : defaultRoot.value
-    const ancestors = getAncestorPaths(defaultRoot.value, parentPath)
+    const ancestors = getAncestorPaths(defaultRoot.value, currentPath)
 
     // Load each ancestor level sequentially
     for (const ancestor of ancestors) {
       await loadTreeLevel(ancestor)
     }
 
-    // Expand all ancestors
+    // Expand all ancestors including the path itself
     treeExpanded.value = ancestors
   }
 })

@@ -17,6 +17,8 @@
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.100",
+    "@iconify-json/simple-icons": "^1.2.75",
     "@nuxt/test-utils": "^3.15.0",
     "@vue/test-utils": "^2.4.0",
     "vitest": "^2.0.0",

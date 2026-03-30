@@ -57,6 +57,12 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2
     devDependencies:
+      '@iconify-json/lucide':
+        specifier: ^1.2.100
+        version: 1.2.100
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.75
+        version: 1.2.75
       '@nuxt/test-utils':
         specifier: ^3.15.0
         version: 3.23.0(@vue/test-utils@2.4.6)(magicast@0.5.2)(typescript@5.9.3)(vitest@2.1.9(@types/node@25.5.0)(lightningcss@1.32.0)(terser@5.46.1))
@@ -659,6 +665,12 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
+
+  '@iconify-json/lucide@1.2.100':
+    resolution: {integrity: sha512-vCrhQ/6T530HEMkWOkSyedvMiuQdVU1tMHEs32k4tklJmCmjokH3Dej6ycvfLt7kftBSQ2kPSUiyOpoW3uOF5g==}
+
+  '@iconify-json/simple-icons@1.2.75':
+    resolution: {integrity: sha512-KvcCUbvcBWb0sbqLIxHoY8z5/piXY08wcY9gfMhF+ph3AfzGMaSmZFkUY71HSXAljQngXkgs4bdKdekO0HQWvg==}
 
   '@iconify/collections@1.0.666':
     resolution: {integrity: sha512-dAwFrwbb0exAEJeM9sbLhCTcTcFxUpzvH2fm0dLKCJ10QMna0MSWKEk3Z0QM75QT2d13m9zytjcMSZxUEQt9iw==}
@@ -5774,6 +5786,14 @@ snapshots:
   '@hono/node-server@1.19.11(hono@4.12.9)':
     dependencies:
       hono: 4.12.9
+
+  '@iconify-json/lucide@1.2.100':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/simple-icons@1.2.75':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/collections@1.0.666':
     dependencies:
