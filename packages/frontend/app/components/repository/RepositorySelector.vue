@@ -184,7 +184,7 @@ function cancel() {
 
         <div class="flex justify-end gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" @click="cancel" />
-          <UButton label="Add" type="submit" :loading="loading" :disabled="!path.trim()" />
+          <UButton label="Add" type="submit" :loading="loading" :disabled="!path.trim() || !isGitRepo" />
         </div>
       </form>
     </template>
@@ -247,7 +247,7 @@ function cancel() {
       </div>
 
       <div class="flex justify-end">
-        <UButton label="Add Repository" type="submit" :loading="loading" :disabled="!path.trim()" />
+        <UButton label="Add Repository" type="submit" :loading="loading" :disabled="!path.trim() || !isGitRepo" />
       </div>
     </form>
   </div>
