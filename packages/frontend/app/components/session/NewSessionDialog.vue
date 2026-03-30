@@ -23,6 +23,11 @@ const error = ref('')
 const repositoryIdRef = computed(() => props.repositoryId)
 const { items: branchItems, loading: branchLoading, headBranch } = useBranchSuggestions(repositoryIdRef)
 
+// Reset source branch when repository changes
+watch(repositoryIdRef, () => {
+  sourceBranch.value = ''
+})
+
 // Pre-select HEAD branch as source when branches load
 watch(headBranch, (branch) => {
   if (!sourceBranch.value && branch) {
@@ -118,6 +123,7 @@ async function submit() {
             v-model="name"
             placeholder="feat/my-feature"
             icon="i-lucide-terminal"
+            class="w-full"
             autofocus
           />
         </UFormField>
@@ -130,6 +136,7 @@ async function submit() {
             icon="i-lucide-git-branch"
             placeholder="main"
             value-key="label"
+            class="w-full"
           />
         </UFormField>
 
@@ -142,13 +149,15 @@ async function submit() {
             icon="i-lucide-git-merge"
             :placeholder="sourceBranch || 'defaults to source'"
             :content="{ hideWhenEmpty: true }"
+            value-key="label"
+            class="w-full"
           />
         </UFormField>
 
         <USwitch
           v-model="workIsolated"
           label="Work isolated"
-          description="Create a dedicated worktree with its own branch."
+          description="Create a dedicated worktree and select or create a branch."
         />
 
         <template v-if="workIsolated">
@@ -161,6 +170,8 @@ async function submit() {
               icon="i-lucide-git-fork"
               :placeholder="suggestedWorkBranch || 'feat/my-feature'"
               :content="{ hideWhenEmpty: true }"
+              value-key="label"
+              class="w-full"
             />
           </UFormField>
 
