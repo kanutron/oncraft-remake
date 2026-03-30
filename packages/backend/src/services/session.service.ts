@@ -139,6 +139,13 @@ export class SessionService {
 		};
 
 		this.store.createSession(session);
+
+		this.eventBus.emit("*", "session:created", {
+			sessionId: session.id,
+			repositoryId,
+			name: opts.name,
+		});
+
 		return session;
 	}
 
@@ -233,7 +240,7 @@ export class SessionService {
 		});
 	}
 
-	async destroy(sessionId: string): Promise<void> {
+	async destroy(sessionId: string, opts: { force?: boolean } = {}): Promise<void> {
 		const session = this.store.getSession(sessionId);
 		if (!session) return;
 
@@ -253,6 +260,12 @@ export class SessionService {
 		}
 
 		this.store.deleteSession(sessionId);
+
+		this.eventBus.emit("*", "session:deleted", {
+			sessionId,
+			repositoryId: session.repositoryId,
+			name: session.name,
+		});
 	}
 
 	checkWorktreeConflict(sessionId: string, newState: SessionState): void {

@@ -124,4 +124,42 @@ describe("SessionService", () => {
 		await service.destroy(session.id);
 		expect(service.get(session.id)).toBeNull();
 	});
+
+	test("emits session:created event on create", async () => {
+		const events: unknown[] = [];
+		eventBus.on("*", "session:created", (data) => events.push(data));
+
+		const session = await service.create("repo-1", {
+			name: "test",
+			sourceBranch: "feat/x",
+			targetBranch: "dev",
+		});
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			sessionId: session.id,
+			repositoryId: "repo-1",
+			name: "test",
+		});
+	});
+
+	test("emits session:deleted event on destroy", async () => {
+		const session = await service.create("repo-1", {
+			name: "to-delete",
+			sourceBranch: "feat/x",
+			targetBranch: "dev",
+		});
+
+		const events: unknown[] = [];
+		eventBus.on("*", "session:deleted", (data) => events.push(data));
+
+		await service.destroy(session.id);
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			sessionId: session.id,
+			repositoryId: "repo-1",
+			name: "to-delete",
+		});
+	});
 });
