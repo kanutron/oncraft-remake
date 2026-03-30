@@ -4,7 +4,9 @@ import { EventBus } from "../../src/infra/event-bus";
 import { GitWatcher } from "../../src/infra/git-watcher";
 import { Store } from "../../src/infra/store";
 import { GitService } from "../../src/services/git.service";
+import { ProcessManager } from "../../src/services/process-manager";
 import { RepositoryService } from "../../src/services/repository.service";
+import { SessionService } from "../../src/services/session.service";
 import { createTestRepo } from "../helpers/test-repo";
 
 const DB_PATH = "/tmp/oncraft-repo-test.db";
@@ -113,5 +115,38 @@ describe("RepositoryService", () => {
 			path: repoPath,
 			name: repo.name,
 		});
+	});
+
+	test("close cascade-destroys sessions via sessionService", async () => {
+		// Wire up SessionService for cascade
+		const processManager = new ProcessManager(eventBus);
+		const sessionService = new SessionService(store, eventBus, new GitService(), processManager);
+		service.setSessionService(sessionService);
+
+		const repo = await service.open(repoPath);
+
+		// Create a session (no worktree for simplicity)
+		const session = await sessionService.create(repo.id, {
+			name: "cascade-test",
+			sourceBranch: "master",
+			targetBranch: "master",
+		});
+
+		const deletedEvents: unknown[] = [];
+		eventBus.on("*", "session:deleted", (data) => deletedEvents.push(data));
+
+		await service.close(repo.id);
+
+		// Session should be gone
+		expect(sessionService.get(session.id)).toBeNull();
+		// session:deleted event should have fired
+		expect(deletedEvents).toHaveLength(1);
+		expect(deletedEvents[0]).toMatchObject({
+			sessionId: session.id,
+			repositoryId: repo.id,
+		});
+
+		// Cleanup processManager
+		await processManager.stopAll();
 	});
 });
