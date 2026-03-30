@@ -101,7 +101,7 @@ async function submit() {
   <UModal
     v-model:open="open"
     title="New Session"
-    description="Create a new Claude Code session in this repository."
+    description="Create a new working session in this repository."
   >
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
@@ -113,20 +113,16 @@ async function submit() {
           icon="i-lucide-alert-circle"
         />
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Session name <span class="text-error-500">*</span></label>
+        <UFormField label="Session name" required help="Name this session with a short sentence or label">
           <UInput
             v-model="name"
             placeholder="feat/my-feature"
             icon="i-lucide-terminal"
             autofocus
-            required
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Name this session with a short sentence or label</span>
-        </div>
+        </UFormField>
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Source branch <span class="text-error-500">*</span></label>
+        <UFormField label="Source branch" required help="Starting point — must be an existing branch">
           <UInputMenu
             v-model="sourceBranch"
             :items="branchItems"
@@ -135,11 +131,9 @@ async function submit() {
             placeholder="main"
             value-key="label"
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Starting point — must be an existing branch</span>
-        </div>
+        </UFormField>
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Target branch</label>
+        <UFormField label="Target branch" help="Where work should merge or PR to — will be created if it doesn't exist">
           <UInputMenu
             v-model="targetBranch"
             autocomplete
@@ -149,8 +143,7 @@ async function submit() {
             :placeholder="sourceBranch || 'defaults to source'"
             :content="{ hideWhenEmpty: true }"
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to — will be created if it doesn't exist</span>
-        </div>
+        </UFormField>
 
         <USwitch
           v-model="workIsolated"
@@ -159,8 +152,7 @@ async function submit() {
         />
 
         <template v-if="workIsolated">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch <span class="text-error-500">*</span></label>
+          <UFormField label="Work branch" required help="Branch for this session's commits — will be created if it doesn't exist. Used for commits within the worktree">
             <UInputMenu
               v-model="workBranch"
               autocomplete
@@ -170,8 +162,7 @@ async function submit() {
               :placeholder="suggestedWorkBranch || 'feat/my-feature'"
               :content="{ hideWhenEmpty: true }"
             />
-            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits — will be created if it doesn't exist. Used for commits within the worktree</span>
-          </div>
+          </UFormField>
 
           <UAlert
             color="info"

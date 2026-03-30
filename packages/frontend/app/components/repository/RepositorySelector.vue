@@ -136,8 +136,7 @@ function cancel() {
   >
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path <span class="text-error-500">*</span></label>
+        <UFormField label="Repository path" required help="Browse or paste a path to a git repository">
           <div class="flex items-center gap-1">
             <UInput
               v-model="path"
@@ -169,18 +168,16 @@ function cancel() {
               </template>
             </UPopover>
           </div>
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Browse or paste a path to a git repository</span>
-        </div>
+        </UFormField>
 
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Name</label>
+        <UFormField label="Name">
           <UInput
             v-model="name"
             placeholder="Display name"
             icon="i-lucide-tag"
             @input="onNameInput"
           />
-        </div>
+        </UFormField>
 
         <div class="flex justify-end gap-2">
           <UButton label="Cancel" color="neutral" variant="ghost" @click="cancel" />
@@ -200,8 +197,7 @@ function cancel() {
     </p>
 
     <form class="flex flex-col gap-4" @submit.prevent="submit">
-      <div class="flex flex-col gap-1">
-        <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
+      <UFormField label="Repository path" required help="Browse or paste a path to a git repository">
         <div class="flex items-center gap-1">
           <UInput
             v-model="path"
@@ -233,18 +229,16 @@ function cancel() {
             </template>
           </UPopover>
         </div>
-        <span class="text-xs text-neutral-400 dark:text-neutral-500">Browse or paste a path to a git repository</span>
-      </div>
+      </UFormField>
 
-      <div class="flex flex-col gap-1">
-        <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Name (optional)</label>
+      <UFormField label="Name">
         <UInput
           v-model="name"
           placeholder="Display name"
           icon="i-lucide-tag"
           @input="onNameInput"
         />
-      </div>
+      </UFormField>
 
       <div class="flex justify-end">
         <UButton label="Add Repository" type="submit" :loading="loading" :disabled="!path.trim() || !isGitRepo" />
