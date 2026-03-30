@@ -1,5 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import type { SessionService } from "../services/session.service";
+import {
+	DirtyStateError,
+	type SessionService,
+} from "../services/session.service";
 
 export function registerSessionRoutes(
 	app: FastifyInstance,
@@ -77,8 +80,19 @@ export function registerSessionRoutes(
 
 	app.delete("/sessions/:id", async (request, reply) => {
 		const { id } = request.params as { id: string };
-		await sessionService.destroy(id);
-		return reply.status(204).send();
+		const { force } = request.query as { force?: string };
+		try {
+			await sessionService.destroy(id, { force: force === "true" });
+			return reply.status(204).send();
+		} catch (err) {
+			if (err instanceof DirtyStateError) {
+				return reply.status(409).send({
+					error: (err as Error).message,
+					code: "DIRTY_STATE",
+				});
+			}
+			throw err;
+		}
 	});
 
 	app.post("/sessions/:id/send", async (request, reply) => {

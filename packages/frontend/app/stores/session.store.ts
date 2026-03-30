@@ -78,10 +78,46 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  async function destroy(sessionId: string, opts: { force?: boolean } = {}) {
+    const session = sessions.value.get(sessionId)
+    const query = opts.force ? '?force=true' : ''
+    const response = await $fetch.raw(`${config.public.backendUrl}/sessions/${sessionId}${query}`, {
+      method: 'DELETE',
+      ignoreResponseError: true,
+    })
+
+    if (response.status === 409) {
+      const body = response._data as { error: string; code: string }
+      return { blocked: true as const, reason: body.error }
+    }
+
+    if (session) {
+      removeSession(sessionId, session.repositoryId)
+    }
+
+    return { blocked: false as const }
+  }
+
+  function removeSession(sessionId: string, repositoryId: string) {
+    sessions.value.delete(sessionId)
+    messages.value.delete(sessionId)
+
+    // If deleted session was active, switch to another
+    if (activeSessionByRepository.value.get(repositoryId) === sessionId) {
+      const remaining = sessionsForRepository(repositoryId)
+      if (remaining.length > 0) {
+        activeSessionByRepository.value.set(repositoryId, remaining[0].id)
+      }
+      else {
+        activeSessionByRepository.value.delete(repositoryId)
+      }
+    }
+  }
+
   return {
     sessions, messages, activeSessionByRepository,
     activeSessionId, sessionsForRepository, messagesForSession,
     fetchForRepository, create, send, reply, interrupt, setActive,
-    appendMessage, updateState,
+    appendMessage, updateState, destroy, removeSession,
   }
 })

@@ -46,6 +46,14 @@ export function useWebSocket() {
           sessionStore.updateState(sessionId, to as SessionState)
         }
         break
+      case 'session:deleted': {
+        const deletedSessionId = msg.sessionId as string
+        const deletedRepoId = msg.repositoryId as string
+        if (deletedSessionId && deletedRepoId) {
+          sessionStore.removeSession(deletedSessionId, deletedRepoId)
+        }
+        break
+      }
     }
   }
 

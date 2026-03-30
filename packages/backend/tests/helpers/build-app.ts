@@ -25,6 +25,7 @@ export async function buildApp(opts?: { fsRoot?: string }) {
 		store,
 		gitService,
 		gitWatcher,
+		eventBus,
 	);
 	const sessionService = new SessionService(
 		store,
@@ -32,6 +33,7 @@ export async function buildApp(opts?: { fsRoot?: string }) {
 		gitService,
 		processManager,
 	);
+	repositoryService.setSessionService(sessionService);
 	const filesystemService = new FilesystemService(opts?.fsRoot ?? homedir());
 
 	const app = Fastify();

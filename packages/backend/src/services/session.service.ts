@@ -5,6 +5,14 @@ import type { Session, SessionState } from "../types";
 import type { GitService } from "./git.service";
 import type { ProcessManager } from "./process-manager";
 
+export class DirtyStateError extends Error {
+	readonly code = "DIRTY_STATE" as const;
+	constructor(message: string) {
+		super(message);
+		this.name = "DirtyStateError";
+	}
+}
+
 interface CreateSessionOptions {
 	name: string;
 	sourceBranch: string;
@@ -139,6 +147,13 @@ export class SessionService {
 		};
 
 		this.store.createSession(session);
+
+		this.eventBus.emit("*", "session:created", {
+			sessionId: session.id,
+			repositoryId,
+			name: opts.name,
+		});
+
 		return session;
 	}
 
@@ -233,26 +248,39 @@ export class SessionService {
 		});
 	}
 
-	async destroy(sessionId: string): Promise<void> {
+	async destroy(
+		sessionId: string,
+		opts: { force?: boolean } = {},
+	): Promise<void> {
 		const session = this.store.getSession(sessionId);
 		if (!session) return;
+
+		const repo = this.store.getRepository(session.repositoryId);
+
+		// Safety check: inspect worktree state before deletion
+		if (session.worktreePath && !opts.force && repo) {
+			await this.checkWorktreeSafety(session, repo.path);
+		}
 
 		if (this.processManager.isAlive(sessionId)) {
 			await this.processManager.stop(sessionId);
 		}
 
-		if (session.worktreePath) {
-			const repo = this.store.getRepository(session.repositoryId);
-			if (repo) {
-				try {
-					await this.gitService.removeWorktree(repo.path, session.worktreePath);
-				} catch {
-					/* worktree may already be gone */
-				}
+		if (session.worktreePath && repo) {
+			try {
+				await this.gitService.removeWorktree(repo.path, session.worktreePath);
+			} catch {
+				/* worktree may already be gone */
 			}
 		}
 
 		this.store.deleteSession(sessionId);
+
+		this.eventBus.emit("*", "session:deleted", {
+			sessionId,
+			repositoryId: session.repositoryId,
+			name: session.name,
+		});
 	}
 
 	checkWorktreeConflict(sessionId: string, newState: SessionState): void {
@@ -280,6 +308,40 @@ export class SessionService {
 				conflictsWith: conflicts.map((s) => s.id),
 				worktreePath,
 			});
+		}
+	}
+
+	private async checkWorktreeSafety(
+		session: Session,
+		repoPath: string,
+	): Promise<void> {
+		if (!session.worktreePath) return;
+
+		// Check for uncommitted changes
+		const status = await this.gitService.getStatus(session.worktreePath);
+		if (status.files.length > 0) {
+			throw new DirtyStateError(
+				`Session "${session.name}" has uncommitted changes (${status.files.length} files). Use force to delete anyway.`,
+			);
+		}
+
+		// Check for commits on work branch not merged into target
+		if (session.workBranch && session.targetBranch) {
+			try {
+				const count = await this.gitService.getUnmergedCommitCount(
+					repoPath,
+					session.targetBranch,
+					session.workBranch,
+				);
+				if (count > 0) {
+					throw new DirtyStateError(
+						`Session "${session.name}" has ${count} unmerged commits on "${session.workBranch}" (target: "${session.targetBranch}"). Use force to delete anyway.`,
+					);
+				}
+			} catch (err) {
+				if (err instanceof DirtyStateError) throw err;
+				// git failure — skip check
+			}
 		}
 	}
 

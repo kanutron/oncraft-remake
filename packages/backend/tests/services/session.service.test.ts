@@ -4,7 +4,10 @@ import { EventBus } from "../../src/infra/event-bus";
 import { Store } from "../../src/infra/store";
 import { GitService } from "../../src/services/git.service";
 import { ProcessManager } from "../../src/services/process-manager";
-import { SessionService } from "../../src/services/session.service";
+import {
+	DirtyStateError,
+	SessionService,
+} from "../../src/services/session.service";
 import { makeRepository } from "../helpers/fixtures";
 import { createTestRepo } from "../helpers/test-repo";
 
@@ -121,6 +124,117 @@ describe("SessionService", () => {
 			sourceBranch: "a",
 			targetBranch: "b",
 		});
+		await service.destroy(session.id);
+		expect(service.get(session.id)).toBeNull();
+	});
+
+	test("emits session:created event on create", async () => {
+		const events: unknown[] = [];
+		eventBus.on("*", "session:created", (data) => events.push(data));
+
+		const session = await service.create("repo-1", {
+			name: "test",
+			sourceBranch: "feat/x",
+			targetBranch: "dev",
+		});
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			sessionId: session.id,
+			repositoryId: "repo-1",
+			name: "test",
+		});
+	});
+
+	test("emits session:deleted event on destroy", async () => {
+		const session = await service.create("repo-1", {
+			name: "to-delete",
+			sourceBranch: "feat/x",
+			targetBranch: "dev",
+		});
+
+		const events: unknown[] = [];
+		eventBus.on("*", "session:deleted", (data) => events.push(data));
+
+		await service.destroy(session.id);
+
+		expect(events).toHaveLength(1);
+		expect(events[0]).toMatchObject({
+			sessionId: session.id,
+			repositoryId: "repo-1",
+			name: "to-delete",
+		});
+	});
+
+	test("destroy throws on dirty worktree unless force is true", async () => {
+		const gitService = new GitService();
+		await gitService.createBranch(repoPath, "feat/dirty-test");
+
+		const session = await service.create("repo-1", {
+			name: "dirty",
+			sourceBranch: "feat/dirty-test",
+			workBranch: "feat/dirty-test",
+			targetBranch: "master",
+		});
+
+		// Make the worktree dirty — create an untracked file
+		const fs = await import("node:fs");
+		fs.writeFileSync(`${session.worktreePath}/dirty.txt`, "uncommitted work");
+
+		// Should throw a DirtyStateError without force
+		await expect(service.destroy(session.id)).rejects.toThrow(DirtyStateError);
+		await expect(service.destroy(session.id)).rejects.toThrow(
+			"has uncommitted changes",
+		);
+
+		// Session should still exist
+		expect(service.get(session.id)).not.toBeNull();
+
+		// Should succeed with force
+		await service.destroy(session.id, { force: true });
+		expect(service.get(session.id)).toBeNull();
+	});
+
+	test("destroy throws when work branch has unmerged commits unless force", async () => {
+		const gitService = new GitService();
+		await gitService.createBranch(repoPath, "feat/unmerged-test");
+
+		const session = await service.create("repo-1", {
+			name: "unmerged",
+			sourceBranch: "feat/unmerged-test",
+			workBranch: "feat/unmerged-test",
+			targetBranch: "master",
+		});
+
+		// Add a commit to the work branch
+		const fs = await import("node:fs");
+		const path = await import("node:path");
+		const wtPath = session.worktreePath as string;
+		fs.writeFileSync(path.join(wtPath, "new-file.txt"), "content");
+		const simpleGit = (await import("simple-git")).default;
+		const git = simpleGit(wtPath);
+		await git.add("new-file.txt");
+		await git.commit("add new file");
+
+		// Should throw a DirtyStateError without force
+		await expect(service.destroy(session.id)).rejects.toThrow(DirtyStateError);
+		await expect(service.destroy(session.id)).rejects.toThrow(
+			"unmerged commits",
+		);
+
+		// Should succeed with force
+		await service.destroy(session.id, { force: true });
+		expect(service.get(session.id)).toBeNull();
+	});
+
+	test("destroy succeeds without checks for sessions with no worktree", async () => {
+		const session = await service.create("repo-1", {
+			name: "no-wt",
+			sourceBranch: "feat/x",
+			targetBranch: "dev",
+		});
+
+		// Should succeed — no worktree means no dirty-state check
 		await service.destroy(session.id);
 		expect(service.get(session.id)).toBeNull();
 	});

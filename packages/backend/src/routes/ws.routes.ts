@@ -87,6 +87,50 @@ export function registerWSRoutes(
 			}),
 		);
 
+		unsubs.push(
+			eventBus.on("*", "session:created", (data) => {
+				socket.send(
+					JSON.stringify({
+						event: "session:created",
+						...(data as Record<string, unknown>),
+					}),
+				);
+			}),
+		);
+
+		unsubs.push(
+			eventBus.on("*", "session:deleted", (data) => {
+				socket.send(
+					JSON.stringify({
+						event: "session:deleted",
+						...(data as Record<string, unknown>),
+					}),
+				);
+			}),
+		);
+
+		unsubs.push(
+			eventBus.on("*", "repository:opened", (data) => {
+				socket.send(
+					JSON.stringify({
+						event: "repository:opened",
+						...(data as Record<string, unknown>),
+					}),
+				);
+			}),
+		);
+
+		unsubs.push(
+			eventBus.on("*", "repository:closed", (data) => {
+				socket.send(
+					JSON.stringify({
+						event: "repository:closed",
+						...(data as Record<string, unknown>),
+					}),
+				);
+			}),
+		);
+
 		socket.on("message", (raw) => {
 			try {
 				const msg = JSON.parse(raw.toString());
