@@ -62,10 +62,12 @@ function cancelDelete() {
       v-if="sessions.length"
       class="flex items-center flex-1 min-w-0 overflow-x-auto"
     >
-      <button
+      <div
         v-for="session in sessions"
         :key="session.id"
-        class="flex items-center gap-1.5 px-3 py-1.5 text-sm border-b-2 whitespace-nowrap transition-colors group"
+        role="button"
+        tabindex="0"
+        class="flex items-center gap-1.5 px-3 py-1.5 text-sm border-b-2 whitespace-nowrap transition-colors group cursor-pointer"
         :class="[
           session.id === activeTab
             ? 'border-primary-500 text-primary-600 dark:text-primary-400'
@@ -89,7 +91,7 @@ function cancelDelete() {
           class="opacity-0 group-hover:opacity-50 hover:opacity-100! -mr-1"
           @click.stop="closeSession(session.id)"
         />
-      </button>
+      </div>
     </div>
 
     <span
