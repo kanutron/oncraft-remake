@@ -137,7 +137,7 @@ function cancel() {
     <template #body>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
+          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path <span class="text-error-500">*</span></label>
           <div class="flex items-center gap-1">
             <UInput
               v-model="path"
@@ -173,7 +173,7 @@ function cancel() {
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Name (optional)</label>
+          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Name</label>
           <UInput
             v-model="name"
             placeholder="Display name"

@@ -50,9 +50,14 @@ watch(name, () => {
   }
 })
 
-// Detect manual edits to work branch
+// Detect manual edits to work branch; reset flag if cleared
 watch(workBranch, (val) => {
-  if (val && val !== suggestedWorkBranch.value) {
+  if (!val) {
+    workBranchManuallyEdited.value = false
+    if (workIsolated.value && suggestedWorkBranch.value) {
+      workBranch.value = suggestedWorkBranch.value
+    }
+  } else if (val !== suggestedWorkBranch.value) {
     workBranchManuallyEdited.value = true
   }
 })
@@ -109,7 +114,7 @@ async function submit() {
         />
 
         <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Session name</label>
+          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Session name <span class="text-error-500">*</span></label>
           <UInput
             v-model="name"
             placeholder="feat/my-feature"
@@ -117,10 +122,11 @@ async function submit() {
             autofocus
             required
           />
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Name this session with a short sentence or label</span>
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Source branch</label>
+          <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Source branch <span class="text-error-500">*</span></label>
           <UInputMenu
             v-model="sourceBranch"
             :items="branchItems"
@@ -143,7 +149,7 @@ async function submit() {
             :placeholder="sourceBranch || 'defaults to source'"
             :content="{ hideWhenEmpty: true }"
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to</span>
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to — will be created if it doesn't exist</span>
         </div>
 
         <USwitch
@@ -154,7 +160,7 @@ async function submit() {
 
         <template v-if="workIsolated">
           <div class="flex flex-col gap-1">
-            <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch</label>
+            <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch <span class="text-error-500">*</span></label>
             <UInputMenu
               v-model="workBranch"
               autocomplete
@@ -164,7 +170,7 @@ async function submit() {
               :placeholder="suggestedWorkBranch || 'feat/my-feature'"
               :content="{ hideWhenEmpty: true }"
             />
-            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits — will be created if it doesn't exist</span>
+            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits — will be created if it doesn't exist. Used for commits within the worktree</span>
           </div>
 
           <UAlert
