@@ -72,7 +72,7 @@ function resolveMessageType(message: ChatMessage): string {
   >
     <div class="max-w-4xl mx-auto py-4 flex flex-col gap-1">
       <template v-if="messages.length === 0">
-        <div class="flex-1 flex items-center justify-center text-neutral-400 dark:text-neutral-500 min-h-[200px]">
+        <div class="flex-1 flex items-center justify-center text-neutral-400 dark:text-neutral-500 min-h-50">
           <p>No messages yet. Send a prompt to start the conversation.</p>
         </div>
       </template>
