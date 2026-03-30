@@ -30,15 +30,59 @@ const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-luci
 
 // --- Tree state ---
 const treeItems = ref<PathTreeNode[]>([])
+const treeExpanded = ref<string[]>([])
 const loadedPaths = new Set<string>()
 
-watch(treeOpen, async (isOpen) => {
-  if (isOpen && treeItems.value.length === 0 && defaultRoot.value) {
-    try {
-      const data = await listDir(defaultRoot.value)
+/** Get ancestor paths between root and target (exclusive of target) */
+function getAncestorPaths(root: string, target: string): string[] {
+  if (!target.startsWith(root)) return []
+  const relative = target.slice(root.length).replace(/^\//, '')
+  if (!relative) return []
+  const segments = relative.split('/').filter(Boolean)
+  const paths: string[] = []
+  let current = root
+  for (const seg of segments) {
+    current = `${current}/${seg}`
+    paths.push(current)
+  }
+  return paths
+}
+
+async function loadTreeLevel(dirPath: string) {
+  if (loadedPaths.has(dirPath)) return
+  loadedPaths.add(dirPath)
+  try {
+    const data = await listDir(dirPath)
+    if (dirPath === defaultRoot.value) {
       treeItems.value = entriesToTreeNodes(data.entries)
-      loadedPaths.add(defaultRoot.value)
-    } catch {}
+    } else {
+      const node = findNode(treeItems.value, dirPath)
+      if (node) node.children = entriesToTreeNodes(data.entries)
+    }
+  } catch {}
+}
+
+watch(treeOpen, async (isOpen) => {
+  if (!isOpen || !defaultRoot.value) return
+
+  // Always ensure root is loaded
+  await loadTreeLevel(defaultRoot.value)
+
+  // If path is set, expand ancestors to show context
+  const currentPath = expandTilde(path.value.trim().replace(/\/$/, ''))
+  if (currentPath && currentPath.startsWith(defaultRoot.value) && currentPath !== defaultRoot.value) {
+    // Get the parent directory (not the path itself, which might be a repo)
+    const lastSlash = currentPath.lastIndexOf('/')
+    const parentPath = lastSlash > 0 ? currentPath.slice(0, lastSlash) : defaultRoot.value
+    const ancestors = getAncestorPaths(defaultRoot.value, parentPath)
+
+    // Load each ancestor level sequentially
+    for (const ancestor of ancestors) {
+      await loadTreeLevel(ancestor)
+    }
+
+    // Expand all ancestors
+    treeExpanded.value = ancestors
   }
 })
 
@@ -159,6 +203,7 @@ function cancel() {
                   <UTree
                     :items="treeItems"
                     :get-key="getTreeKey"
+                    v-model:expanded="treeExpanded"
                     :on-toggle="onTreeToggle"
                     :on-select="onTreeSelect"
                     color="neutral"
@@ -170,12 +215,13 @@ function cancel() {
           </div>
         </UFormField>
 
-        <UFormField label="Name">
+        <UFormField label="Name" help="You can set a shorter or cleaner name to be used in the UI.">
           <UInput
             v-model="name"
             placeholder="Display name"
             icon="i-lucide-tag"
             @input="onNameInput"
+            class="w-full"
           />
         </UFormField>
 
