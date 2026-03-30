@@ -14,20 +14,14 @@ const emit = defineEmits<{
 
 const repositoryStore = useRepositoryStore()
 
-// userInput: what the user actually typed — drives the composable fetching
-// path: what's displayed in the input — may include inline completion suffix
-const userInput = ref('')
 const path = ref('')
 const name = ref('')
 const loading = ref(false)
 const nameManuallyEdited = ref(false)
 
-const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent, defaultRoot } = usePathSuggestions(userInput)
+const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent, defaultRoot } = usePathSuggestions(path)
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
-
-// Guard to prevent completion from being treated as user input
-let settingCompletion = false
 
 // Template refs for the UInput components
 const modalInputRef = ref<{ inputRef: Ref<HTMLInputElement | null> } | null>(null)
@@ -37,54 +31,65 @@ function getInputEl(): HTMLInputElement | null {
   return modalInputRef.value?.inputRef?.value ?? inlineInputRef.value?.inputRef?.value ?? null
 }
 
-// When a match arrives, inline-complete: show the full path with the suffix selected
+// Shell-style inline completion
+// When matches arrive, show the first match's remaining text as selected text
+let isCompleting = false
+
 watch(firstMatch, (match) => {
-  if (!match) return
-  const typed = userInput.value
-  if (!typed) return
-  // Only complete if match starts with what was typed and is longer
+  if (!match || isCompleting) return
+  const typed = path.value
+  if (!typed || typeof typed !== 'string') return
+
   if (match.path.toLowerCase().startsWith(typed.toLowerCase()) && match.path.length > typed.length) {
-    settingCompletion = true
-    path.value = match.path
+    isCompleting = true
+    // Directly set the DOM input value and select the completion suffix
+    // Don't change path.value — we only change the DOM display
     nextTick(() => {
       const el = getInputEl()
       if (el) {
         el.value = match.path
         el.setSelectionRange(typed.length, match.path.length)
       }
-      settingCompletion = false
+      isCompleting = false
     })
   }
 })
 
-function onPathInput(val: string) {
-  if (settingCompletion) return
-  userInput.value = val
-  path.value = val
-}
-
 function onTabKey(e: KeyboardEvent) {
-  if (firstMatch.value) {
+  const el = getInputEl()
+  if (!el) return
+
+  // If there's a selection (completion suffix), accept it
+  if (el.selectionStart !== el.selectionEnd && firstMatch.value) {
     e.preventDefault()
-    // Accept the completion and descend into the directory
     const completed = `${firstMatch.value.path}/`
-    settingCompletion = true
-    userInput.value = completed
     path.value = completed
     nextTick(() => {
-      const el = getInputEl()
       if (el) {
         el.value = completed
         el.setSelectionRange(completed.length, completed.length)
       }
-      settingCompletion = false
+    })
+    return
+  }
+
+  // If there's a single match but no selection, accept it too
+  if (firstMatch.value) {
+    e.preventDefault()
+    const completed = `${firstMatch.value.path}/`
+    path.value = completed
+    nextTick(() => {
+      if (el) {
+        el.value = completed
+        el.setSelectionRange(completed.length, completed.length)
+      }
     })
   }
 }
 
-// Auto-fill name from last path segment (only from user-committed input)
-watch(userInput, (val) => {
-  if (nameManuallyEdited.value) return
+// Auto-fill name from last path segment
+watch(path, (val) => {
+  if (nameManuallyEdited.value || typeof val !== 'string') return
   const segments = val.split('/').filter(Boolean)
   name.value = segments.length > 0 ? segments[segments.length - 1] : ''
 })
@@ -94,9 +99,7 @@ watch(open, (isOpen) => {
   if (isOpen && !path.value) {
     const prefill = lastParent.value || defaultRoot.value
     if (prefill) {
-      const initial = `${prefill}/`
-      userInput.value = initial
-      path.value = initial
+      path.value = `${prefill}/`
     }
   }
 })
@@ -106,13 +109,16 @@ function onNameInput() {
 }
 
 async function submit() {
-  if (!path.value.trim()) return
+  // On submit, take the actual DOM value (which may include completion)
+  const el = getInputEl()
+  const submitPath = el?.value?.trim() || String(path.value).trim()
+  if (!submitPath) return
 
+  path.value = submitPath
   loading.value = true
   try {
-    await repositoryStore.open(path.value.trim(), name.value.trim() || undefined)
-    saveLastParent(path.value.trim())
-    userInput.value = ''
+    await repositoryStore.open(submitPath, name.value.trim() || undefined)
+    saveLastParent(submitPath)
     path.value = ''
     name.value = ''
     nameManuallyEdited.value = false
@@ -124,7 +130,6 @@ async function submit() {
 }
 
 function cancel() {
-  userInput.value = ''
   path.value = ''
   name.value = ''
   nameManuallyEdited.value = false
@@ -147,7 +152,7 @@ function cancel() {
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
           <UInput
             ref="modalInputRef"
-            :model-value="path"
+            v-model="path"
             :icon="pathIcon"
             :loading="pathLoading"
             placeholder="/path/to/repository"
@@ -155,7 +160,6 @@ function cancel() {
             :color="isGitRepo ? 'success' : undefined"
             :highlight="isGitRepo"
             :ui="{ leadingIcon: isGitRepo ? 'text-success-500' : '' }"
-            @update:model-value="onPathInput"
             @keydown.tab="onTabKey"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Type a path — Tab to autocomplete</span>
@@ -182,7 +186,7 @@ function cancel() {
             label="Add"
             type="submit"
             :loading="loading"
-            :disabled="!path.trim()"
+            :disabled="!String(path).trim()"
           />
         </div>
       </form>
@@ -203,7 +207,7 @@ function cancel() {
         <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
         <UInput
           ref="inlineInputRef"
-          :model-value="path"
+          v-model="path"
           :icon="pathIcon"
           :loading="pathLoading"
           placeholder="/path/to/repository"
@@ -211,7 +215,6 @@ function cancel() {
           :color="isGitRepo ? 'success' : undefined"
           :highlight="isGitRepo"
           :ui="{ leadingIcon: isGitRepo ? 'text-success-500' : '' }"
-          @input="onPathInput"
           @keydown.tab="onTabKey"
         />
         <span class="text-xs text-neutral-400 dark:text-neutral-500">Type a path — Tab to autocomplete</span>
@@ -232,7 +235,7 @@ function cancel() {
           label="Add Repository"
           type="submit"
           :loading="loading"
-          :disabled="!path.trim()"
+          :disabled="!String(path).trim()"
         />
       </div>
     </form>

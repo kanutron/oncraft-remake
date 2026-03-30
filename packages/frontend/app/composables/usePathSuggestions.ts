@@ -98,7 +98,7 @@ export function usePathSuggestions(userInput: Ref<string>) {
   }, 150)
 
   watch(userInput, (val) => {
-    if (val) {
+    if (val && typeof val === 'string') {
       debouncedFetch(val)
     } else {
       matches.value = []
