@@ -121,7 +121,7 @@ async function submit() {
         <UFormField label="Session name" required help="Name this session with a short sentence or label">
           <UInput
             v-model="name"
-            placeholder="feat/my-feature"
+            placeholder="my new feature"
             icon="i-lucide-terminal"
             class="w-full"
             autofocus
