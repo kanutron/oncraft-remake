@@ -48,15 +48,24 @@ export function usePathSuggestions(userInput: Ref<string>) {
     }
   }
 
-  const debouncedFetch = useDebounceFn(async (path: string) => {
+  /** Expand ~ to the configured root path */
+  function expandTilde(p: string): string {
+    if (p === '~' || p.startsWith('~/')) {
+      return defaultRoot.value ? p.replace(/^~/, defaultRoot.value) : p
+    }
+    return p
+  }
+
+  const debouncedFetch = useDebounceFn(async (rawPath: string) => {
+    const path = expandTilde(rawPath)
     const { parent, segment } = getParentAndSegment(path)
     if (!parent) {
       matches.value = []
       return
     }
 
-    // Don't fetch paths that are clearly outside the configured root
-    if (defaultRoot.value && !parent.startsWith(defaultRoot.value) && parent !== '/') {
+    // Don't fetch paths outside the configured root
+    if (defaultRoot.value && parent !== defaultRoot.value && !parent.startsWith(`${defaultRoot.value}/`)) {
       matches.value = []
       return
     }

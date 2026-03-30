@@ -24,11 +24,12 @@ const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent,
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
 
 // Template refs for the UInput components
-const modalInputRef = ref<{ inputRef: Ref<HTMLInputElement | null> } | null>(null)
-const inlineInputRef = ref<{ inputRef: Ref<HTMLInputElement | null> } | null>(null)
+// Vue auto-unwraps exposed refs, so inputRef is directly HTMLInputElement | null
+const modalInputRef = ref<{ inputRef: HTMLInputElement | null } | null>(null)
+const inlineInputRef = ref<{ inputRef: HTMLInputElement | null } | null>(null)
 
 function getInputEl(): HTMLInputElement | null {
-  return modalInputRef.value?.inputRef?.value ?? inlineInputRef.value?.inputRef?.value ?? null
+  return modalInputRef.value?.inputRef ?? inlineInputRef.value?.inputRef ?? null
 }
 
 // Shell-style inline completion
