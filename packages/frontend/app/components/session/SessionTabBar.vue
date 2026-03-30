@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TabsItem } from '@nuxt/ui'
 import type { SessionState } from '~/types'
 
 const props = defineProps<{
@@ -24,6 +25,13 @@ const stateColor: Record<SessionState, string> = {
   completed: 'secondary',
 }
 
+const tabItems = computed<TabsItem[]>(() =>
+  sessions.value.map(s => ({
+    label: s.name,
+    value: s.id,
+  })),
+)
+
 const activeTab = computed({
   get: () => sessionStore.activeSessionId(props.repositoryId) ?? undefined,
   set: (value) => {
@@ -31,7 +39,9 @@ const activeTab = computed({
   },
 })
 
-async function closeSession(sessionId: string) {
+async function closeSession(sessionId: string, event: Event) {
+  event.stopPropagation()
+  event.preventDefault()
   const session = sessionStore.sessions.get(sessionId)
   if (!session) return
 
@@ -58,41 +68,33 @@ function cancelDelete() {
 
 <template>
   <div class="flex items-center border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-    <div
-      v-if="sessions.length"
-      class="flex items-center flex-1 min-w-0 overflow-x-auto"
+    <UTabs
+      v-if="tabItems.length"
+      v-model="activeTab"
+      :items="tabItems"
+      :content="false"
+      variant="link"
+      size="sm"
+      :ui="{ root: 'flex-1 min-w-0', trigger: 'group' }"
     >
-      <div
-        v-for="session in sessions"
-        :key="session.id"
-        role="button"
-        tabindex="0"
-        class="flex items-center gap-1.5 px-3 py-1.5 text-sm border-b-2 whitespace-nowrap transition-colors group cursor-pointer"
-        :class="[
-          session.id === activeTab
-            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-            : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-        ]"
-        @click="activeTab = session.id"
-      >
-        <span class="truncate max-w-32">{{ session.name }}</span>
+      <template #trailing="{ item }">
         <UBadge
-          :label="session.state"
-          :color="stateColor[session.state] as any"
+          :label="sessions.find(s => s.id === item.value)?.state ?? 'idle'"
+          :color="(stateColor[sessions.find(s => s.id === item.value)?.state ?? 'idle'] as any)"
           variant="subtle"
           size="xs"
         />
-        <UButton
-          icon="i-lucide-x"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          square
-          class="opacity-0 group-hover:opacity-50 hover:opacity-100! -mr-1"
-          @click.stop="closeSession(session.id)"
-        />
-      </div>
-    </div>
+        <span
+          role="button"
+          tabindex="-1"
+          class="inline-flex items-center p-0.5 rounded opacity-0 group-hover:opacity-50 hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-opacity cursor-pointer"
+          @click="closeSession(String(item.value), $event)"
+          @mousedown.prevent
+        >
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </span>
+      </template>
+    </UTabs>
 
     <span
       v-else

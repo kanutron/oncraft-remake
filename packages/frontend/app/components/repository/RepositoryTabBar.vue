@@ -1,43 +1,54 @@
 <script setup lang="ts">
+import type { TabsItem } from '@nuxt/ui'
+
 const repositoryStore = useRepositoryStore()
 
 const showSelector = ref(false)
 
-function selectRepository(id: string) {
-  repositoryStore.setActive(id)
-}
+const tabItems = computed<TabsItem[]>(() =>
+  repositoryStore.sortedRepositories.map(r => ({
+    label: r.name,
+    value: r.id,
+  })),
+)
 
-function closeRepository(id: string) {
+const activeTab = computed({
+  get: () => repositoryStore.activeRepositoryId ?? undefined,
+  set: (value) => {
+    if (value) repositoryStore.setActive(String(value))
+  },
+})
+
+function closeRepository(id: string, event: Event) {
+  event.stopPropagation()
+  event.preventDefault()
   repositoryStore.close(id)
 }
 </script>
 
 <template>
   <div class="flex items-center border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
-    <div class="flex items-center flex-1 min-w-0 overflow-x-auto">
-      <button
-        v-for="repo in repositoryStore.sortedRepositories"
-        :key="repo.id"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm border-b-2 whitespace-nowrap transition-colors"
-        :class="[
-          repo.id === repositoryStore.activeRepositoryId
-            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-            : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
-        ]"
-        @click="selectRepository(repo.id)"
-      >
-        <span class="truncate max-w-40">{{ repo.name }}</span>
-        <UButton
-          icon="i-lucide-x"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          square
-          class="ml-1 opacity-50 hover:opacity-100"
-          @click.stop="closeRepository(repo.id)"
-        />
-      </button>
-    </div>
+    <UTabs
+      v-if="tabItems.length"
+      v-model="activeTab"
+      :items="tabItems"
+      :content="false"
+      variant="link"
+      size="sm"
+      :ui="{ root: 'flex-1 min-w-0', trigger: 'group' }"
+    >
+      <template #trailing="{ item }">
+        <span
+          role="button"
+          tabindex="-1"
+          class="inline-flex items-center p-0.5 rounded opacity-50 hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-opacity cursor-pointer"
+          @click="closeRepository(String(item.value), $event)"
+          @mousedown.prevent
+        >
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </span>
+      </template>
+    </UTabs>
 
     <div class="flex items-center px-2 shrink-0">
       <UButton
