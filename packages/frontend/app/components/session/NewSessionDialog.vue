@@ -141,6 +141,7 @@ async function submit() {
             :loading="branchLoading"
             icon="i-lucide-git-merge"
             :placeholder="sourceBranch || 'defaults to source'"
+            :content="{ hideWhenEmpty: true }"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to</span>
         </div>
@@ -161,6 +162,7 @@ async function submit() {
               :loading="branchLoading"
               icon="i-lucide-git-fork"
               :placeholder="suggestedWorkBranch || 'feat/my-feature'"
+              :content="{ hideWhenEmpty: true }"
             />
             <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits — will be created if it doesn't exist</span>
           </div>

@@ -31,9 +31,13 @@ function onHighlight(payload: { value: string } | undefined) {
 }
 
 function onTabKey(e: KeyboardEvent) {
-  if (highlightedValue.value) {
+  // If an item is highlighted, select it
+  // If no highlight but exactly one item, select that item (shell-like single-match completion)
+  const target = highlightedValue.value
+    ?? (pathItems.value.length === 1 ? (pathItems.value[0] as { value?: string }).value ?? null : null)
+  if (target) {
     e.preventDefault()
-    onPathUpdate(highlightedValue.value)
+    onPathUpdate(target)
   }
 }
 
@@ -113,7 +117,9 @@ function cancel() {
             placeholder="/path/to/repository"
             autofocus
             :content="{ hideWhenEmpty: true }"
-            :ui="{ base: '[direction:rtl] text-left' }"
+            :color="isGitRepo ? 'success' : undefined"
+            :highlight="isGitRepo"
+            :ui="{ base: '[direction:rtl] text-left', leadingIcon: isGitRepo ? 'text-success-500' : '' }"
             @update:model-value="onPathUpdate"
             @highlight="onHighlight"
             @keydown.tab="onTabKey"
@@ -171,6 +177,9 @@ function cancel() {
           placeholder="/path/to/repository"
           autofocus
           :content="{ hideWhenEmpty: true }"
+          :color="isGitRepo ? 'success' : undefined"
+          :highlight="isGitRepo"
+          :ui="{ base: '[direction:rtl] text-left', leadingIcon: isGitRepo ? 'text-success-500' : '' }"
           @update:model-value="onPathUpdate"
           @highlight="onHighlight"
           @keydown.tab="onTabKey"
