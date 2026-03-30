@@ -16,6 +16,7 @@ const sourceBranch = ref('')
 const targetBranch = ref('')
 const workIsolated = ref(false)
 const workBranch = ref('')
+const workBranchManuallyEdited = ref(false)
 const loading = ref(false)
 const error = ref('')
 
@@ -26,6 +27,33 @@ const { items: branchItems, loading: branchLoading, headBranch } = useBranchSugg
 watch(headBranch, (branch) => {
   if (!sourceBranch.value && branch) {
     sourceBranch.value = branch
+  }
+})
+
+const suggestedWorkBranch = computed(() => {
+  if (!name.value.trim()) return ''
+  const kebab = name.value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return kebab ? `working/${kebab}` : ''
+})
+
+// When workIsolated is toggled on, auto-fill if not manually edited
+watch(workIsolated, (isolated) => {
+  if (isolated && !workBranchManuallyEdited.value && suggestedWorkBranch.value) {
+    workBranch.value = suggestedWorkBranch.value
+  }
+})
+
+// When name changes, update work branch suggestion if not manually edited
+watch(name, () => {
+  if (!workBranchManuallyEdited.value && workIsolated.value && suggestedWorkBranch.value) {
+    workBranch.value = suggestedWorkBranch.value
+  }
+})
+
+// Detect manual edits to work branch
+watch(workBranch, (val) => {
+  if (val && val !== suggestedWorkBranch.value) {
+    workBranchManuallyEdited.value = true
   }
 })
 
@@ -52,6 +80,7 @@ async function submit() {
     targetBranch.value = ''
     workIsolated.value = false
     workBranch.value = ''
+    workBranchManuallyEdited.value = false
     open.value = false
     emit('close')
   } catch (err: unknown) {
@@ -100,19 +129,18 @@ async function submit() {
             placeholder="main"
             value-key="label"
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Starting point for this session (HEAD)</span>
+          <span class="text-xs text-neutral-400 dark:text-neutral-500">Starting point — must be an existing branch</span>
         </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Target branch</label>
           <UInputMenu
             v-model="targetBranch"
+            autocomplete
             :items="branchItems"
             :loading="branchLoading"
             icon="i-lucide-git-merge"
             :placeholder="sourceBranch || 'defaults to source'"
-            value-key="label"
-            :create-item="{ position: 'bottom', when: 'always' }"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Where work should merge or PR to</span>
         </div>
@@ -128,14 +156,13 @@ async function submit() {
             <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Work branch</label>
             <UInputMenu
               v-model="workBranch"
+              autocomplete
               :items="branchItems"
               :loading="branchLoading"
               icon="i-lucide-git-fork"
-              placeholder="feat/my-feature"
-              value-key="label"
-              :create-item="{ position: 'bottom', when: 'always' }"
+              :placeholder="suggestedWorkBranch || 'feat/my-feature'"
             />
-            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits (created if it doesn't exist)</span>
+            <span class="text-xs text-neutral-400 dark:text-neutral-500">Branch for this session's commits — will be created if it doesn't exist</span>
           </div>
 
           <UAlert
