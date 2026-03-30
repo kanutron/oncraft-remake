@@ -19,7 +19,7 @@ const name = ref('')
 const loading = ref(false)
 const nameManuallyEdited = ref(false)
 
-const { items: pathItems, loading: pathLoading, isGitRepo, lastParent, saveLastParent, resolveSelection } = usePathSuggestions(path)
+const { items: pathItems, loading: pathLoading, isGitRepo, lastParent, saveLastParent, resolveSelection, defaultRoot } = usePathSuggestions(path)
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
 
@@ -30,10 +30,13 @@ watch(path, (val) => {
   name.value = segments.length > 0 ? segments[segments.length - 1] : ''
 })
 
-// Pre-fill path with last used parent when dialog opens
+// Pre-fill path when dialog opens
 watch(open, (isOpen) => {
-  if (isOpen && lastParent.value && !path.value) {
-    path.value = `${lastParent.value}/`
+  if (isOpen && !path.value) {
+    const prefill = lastParent.value || defaultRoot.value
+    if (prefill) {
+      path.value = `${prefill}/`
+    }
   }
 })
 

@@ -15,6 +15,19 @@ export function usePathSuggestions(pathValue: Ref<string>) {
       : '',
   )
 
+  const defaultRoot = ref('')
+
+  // Fetch the configured root from backend
+  async function fetchRoot() {
+    try {
+      const data = await $fetch<{ root: string }>(`${config.public.backendUrl}/filesystem/root`)
+      defaultRoot.value = data.root
+    } catch {
+      // fallback: leave empty
+    }
+  }
+  fetchRoot()
+
   let fetchController: AbortController | null = null
 
   function getParentAndSegment(fullPath: string): { parent: string, segment: string } {
@@ -102,5 +115,5 @@ export function usePathSuggestions(pathValue: Ref<string>) {
     return match ? `${match.path}/` : null
   }
 
-  return { items, loading, isGitRepo, lastParent, saveLastParent, resolveSelection }
+  return { items, loading, isGitRepo, lastParent, saveLastParent, resolveSelection, defaultRoot }
 }
