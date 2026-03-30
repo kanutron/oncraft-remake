@@ -16,9 +16,12 @@ export class GitWatcher {
 		if (this.watchers.has(path)) return;
 
 		// Read initial branch (repo may disappear before this resolves)
-		this.gitService.getBranch(path).then((branch) => {
-			this.lastBranch.set(path, branch);
-		}).catch(() => {});
+		this.gitService
+			.getBranch(path)
+			.then((branch) => {
+				this.lastBranch.set(path, branch);
+			})
+			.catch(() => {});
 
 		const gitDir = join(path, ".git");
 		const watcher = watch([join(gitDir, "HEAD"), join(gitDir, "refs")], {
@@ -26,8 +29,12 @@ export class GitWatcher {
 			awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
 		});
 
-		watcher.on("change", () => { if (this.watchers.has(path)) this.checkBranch(path); });
-		watcher.on("add", () => { if (this.watchers.has(path)) this.checkBranch(path); });
+		watcher.on("change", () => {
+			if (this.watchers.has(path)) this.checkBranch(path);
+		});
+		watcher.on("add", () => {
+			if (this.watchers.has(path)) this.checkBranch(path);
+		});
 
 		this.watchers.set(path, watcher);
 	}

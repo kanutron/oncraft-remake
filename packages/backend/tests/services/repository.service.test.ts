@@ -120,7 +120,12 @@ describe("RepositoryService", () => {
 	test("close cascade-destroys sessions via sessionService", async () => {
 		// Wire up SessionService for cascade
 		const processManager = new ProcessManager(eventBus);
-		const sessionService = new SessionService(store, eventBus, new GitService(), processManager);
+		const sessionService = new SessionService(
+			store,
+			eventBus,
+			new GitService(),
+			processManager,
+		);
 		service.setSessionService(sessionService);
 
 		const repo = await service.open(repoPath);

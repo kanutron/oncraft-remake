@@ -218,7 +218,9 @@ describe("SessionService", () => {
 
 		// Should throw a DirtyStateError without force
 		await expect(service.destroy(session.id)).rejects.toThrow(DirtyStateError);
-		await expect(service.destroy(session.id)).rejects.toThrow("unmerged commits");
+		await expect(service.destroy(session.id)).rejects.toThrow(
+			"unmerged commits",
+		);
 
 		// Should succeed with force
 		await service.destroy(session.id, { force: true });
