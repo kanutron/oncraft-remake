@@ -240,9 +240,20 @@ export class SessionService {
 		});
 	}
 
-	async destroy(sessionId: string, opts: { force?: boolean } = {}): Promise<void> {
+	async destroy(
+		sessionId: string,
+		opts: { force?: boolean } = {},
+	): Promise<void> {
 		const session = this.store.getSession(sessionId);
 		if (!session) return;
+
+		// Safety check: inspect worktree state before deletion
+		if (session.worktreePath && !opts.force) {
+			const repo = this.store.getRepository(session.repositoryId);
+			if (repo) {
+				await this.checkWorktreeSafety(session, repo.path);
+			}
+		}
 
 		if (this.processManager.isAlive(sessionId)) {
 			await this.processManager.stop(sessionId);
@@ -293,6 +304,42 @@ export class SessionService {
 				conflictsWith: conflicts.map((s) => s.id),
 				worktreePath,
 			});
+		}
+	}
+
+	private async checkWorktreeSafety(
+		session: Session,
+		repoPath: string,
+	): Promise<void> {
+		if (!session.worktreePath) return;
+
+		// Check for uncommitted changes
+		const status = await this.gitService.getStatus(session.worktreePath);
+		if (status.files.length > 0) {
+			throw new Error(
+				`Session "${session.name}" has uncommitted changes (${status.files.length} files). Use force to delete anyway.`,
+			);
+		}
+
+		// Check for commits on work branch not merged into target
+		if (session.workBranch && session.targetBranch) {
+			try {
+				const simpleGit = (await import("simple-git")).default;
+				const git = simpleGit(repoPath);
+				const log = await git.log({
+					from: session.targetBranch,
+					to: session.workBranch,
+				});
+				if (log.total > 0) {
+					throw new Error(
+						`Session "${session.name}" has ${log.total} unmerged commits on "${session.workBranch}" (target: "${session.targetBranch}"). Use force to delete anyway.`,
+					);
+				}
+			} catch (err) {
+				// If the error is ours (unmerged commits), rethrow
+				if ((err as Error).message.includes("unmerged commits")) throw err;
+				// Otherwise (git error), skip the check — don't block delete on git failures
+			}
 		}
 	}
 
