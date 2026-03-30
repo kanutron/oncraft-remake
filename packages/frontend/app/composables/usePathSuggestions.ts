@@ -1,21 +1,24 @@
 import { useDebounceFn } from '@vueuse/core'
-import type { InputMenuItem } from '@nuxt/ui'
 
 const STORAGE_KEY = 'oncraft:lastRepoParent'
 
+interface DirEntry {
+  name: string
+  path: string
+  isGitRepo: boolean
+}
+
 export function usePathSuggestions(pathValue: Ref<string>) {
   const config = useRuntimeConfig()
-  const items = ref<InputMenuItem[]>([])
   const loading = ref(false)
   const isGitRepo = ref(false)
+  const defaultRoot = ref('')
 
   const lastParent = ref(
     typeof localStorage !== 'undefined'
       ? localStorage.getItem(STORAGE_KEY) ?? ''
       : '',
   )
-
-  const defaultRoot = ref('')
 
   // Fetch the configured root from backend
   async function fetchRoot() {
@@ -30,11 +33,15 @@ export function usePathSuggestions(pathValue: Ref<string>) {
 
   let fetchController: AbortController | null = null
 
+  // Current filtered matches from the last fetch
+  const matches = ref<DirEntry[]>([])
+
+  // The first match — used for inline completion
+  const firstMatch = computed(() => matches.value.length > 0 ? matches.value[0] : null)
+
   function getParentAndSegment(fullPath: string): { parent: string, segment: string } {
     if (!fullPath || fullPath === '/') return { parent: '/', segment: '' }
-    // If path ends with /, list that directory with no segment filter
     if (fullPath.endsWith('/')) return { parent: fullPath.slice(0, -1) || '/', segment: '' }
-    // Otherwise, parent is dirname and segment is the partial name being typed
     const lastSlash = fullPath.lastIndexOf('/')
     if (lastSlash === -1) return { parent: '/', segment: fullPath }
     return {
@@ -43,13 +50,10 @@ export function usePathSuggestions(pathValue: Ref<string>) {
     }
   }
 
-  // Raw entries from last fetch — used to resolve selections
-  const rawEntries = ref<Array<{ name: string, path: string, isGitRepo: boolean }>>([])
-
   const debouncedFetch = useDebounceFn(async (path: string) => {
     const { parent, segment } = getParentAndSegment(path)
     if (!parent) {
-      items.value = []
+      matches.value = []
       return
     }
 
@@ -59,7 +63,7 @@ export function usePathSuggestions(pathValue: Ref<string>) {
     loading.value = true
     try {
       const data = await $fetch<{
-        entries: Array<{ name: string, path: string, isGitRepo: boolean }>
+        entries: DirEntry[]
         parent: string | null
         isGitRepo: boolean
       }>(`${config.public.backendUrl}/filesystem/list-dirs`, {
@@ -67,20 +71,11 @@ export function usePathSuggestions(pathValue: Ref<string>) {
         signal: fetchController.signal,
       })
 
-      rawEntries.value = data.entries
-
-      const filtered = segment
+      matches.value = segment
         ? data.entries.filter(e => e.name.toLowerCase().startsWith(segment.toLowerCase()))
         : data.entries
 
-      items.value = filtered.map(e => ({
-        label: e.name,
-        icon: e.isGitRepo ? 'i-simple-icons-git' : 'i-lucide-folder',
-        value: e.path,
-      })) as InputMenuItem[]
-
-      // Check git repo status: if we listed the directory itself (path ends with /),
-      // use the response-level flag; otherwise check entries for a matching path
+      // Git repo detection for the current path
       if (path.endsWith('/')) {
         isGitRepo.value = data.isGitRepo
       } else {
@@ -89,20 +84,19 @@ export function usePathSuggestions(pathValue: Ref<string>) {
         )
       }
     } catch {
-      items.value = []
+      matches.value = []
       isGitRepo.value = false
     } finally {
       loading.value = false
     }
-  }, 200)
+  }, 150)
 
   watch(pathValue, (val) => {
     if (val) {
-      rawEntries.value = []
+      matches.value = []
       debouncedFetch(val)
     } else {
-      items.value = []
-      rawEntries.value = []
+      matches.value = []
       isGitRepo.value = false
     }
   })
@@ -114,11 +108,5 @@ export function usePathSuggestions(pathValue: Ref<string>) {
     localStorage.setItem(STORAGE_KEY, parent)
   }
 
-  /** If val matches a known entry path, return it with trailing slash. Otherwise null. */
-  function resolveSelection(val: string): string | null {
-    const match = rawEntries.value.find(e => e.path === val)
-    return match ? `${match.path}/` : null
-  }
-
-  return { items, loading, isGitRepo, lastParent, saveLastParent, resolveSelection, defaultRoot }
+  return { matches, firstMatch, loading, isGitRepo, lastParent, saveLastParent, defaultRoot }
 }
