@@ -19,74 +19,9 @@ const name = ref('')
 const loading = ref(false)
 const nameManuallyEdited = ref(false)
 
-const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent, defaultRoot } = usePathSuggestions(path)
+const { items: pathItems, loading: pathLoading, isGitRepo, lastParent, saveLastParent, resolveSelection, defaultRoot } = usePathSuggestions(path)
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
-
-// Template refs for the UInput components
-// Vue auto-unwraps exposed refs, so inputRef is directly HTMLInputElement | null
-const modalInputRef = ref<{ inputRef: HTMLInputElement | null } | null>(null)
-const inlineInputRef = ref<{ inputRef: HTMLInputElement | null } | null>(null)
-
-function getInputEl(): HTMLInputElement | null {
-  return modalInputRef.value?.inputRef ?? inlineInputRef.value?.inputRef ?? null
-}
-
-// Shell-style inline completion
-// When matches arrive, show the first match's remaining text as selected text
-let isCompleting = false
-
-watch(firstMatch, (match) => {
-  if (!match || isCompleting) return
-  const typed = path.value
-  if (!typed || typeof typed !== 'string') return
-
-  if (match.path.toLowerCase().startsWith(typed.toLowerCase()) && match.path.length > typed.length) {
-    isCompleting = true
-    // Directly set the DOM input value and select the completion suffix
-    // Don't change path.value — we only change the DOM display
-    nextTick(() => {
-      const el = getInputEl()
-      if (el) {
-        el.value = match.path
-        el.setSelectionRange(typed.length, match.path.length)
-      }
-      isCompleting = false
-    })
-  }
-})
-
-function onTabKey(e: KeyboardEvent) {
-  const el = getInputEl()
-  if (!el) return
-
-  // If there's a selection (completion suffix), accept it
-  if (el.selectionStart !== el.selectionEnd && firstMatch.value) {
-    e.preventDefault()
-    const completed = `${firstMatch.value.path}/`
-    path.value = completed
-    nextTick(() => {
-      if (el) {
-        el.value = completed
-        el.setSelectionRange(completed.length, completed.length)
-      }
-    })
-    return
-  }
-
-  // If there's a single match but no selection, accept it too
-  if (firstMatch.value) {
-    e.preventDefault()
-    const completed = `${firstMatch.value.path}/`
-    path.value = completed
-    nextTick(() => {
-      if (el) {
-        el.value = completed
-        el.setSelectionRange(completed.length, completed.length)
-      }
-    })
-  }
-}
 
 // Auto-fill name from last path segment
 watch(path, (val) => {
@@ -109,17 +44,19 @@ function onNameInput() {
   nameManuallyEdited.value = true
 }
 
-async function submit() {
-  // On submit, take the actual DOM value (which may include completion)
-  const el = getInputEl()
-  const submitPath = el?.value?.trim() || String(path.value).trim()
-  if (!submitPath) return
+// Handle path input updates — when user selects from dropdown, append trailing /
+function onPathUpdate(val: string) {
+  const resolved = resolveSelection(val)
+  path.value = resolved ?? val
+}
 
-  path.value = submitPath
+async function submit() {
+  if (!path.value.trim()) return
+
   loading.value = true
   try {
-    await repositoryStore.open(submitPath, name.value.trim() || undefined)
-    saveLastParent(submitPath)
+    await repositoryStore.open(path.value.trim(), name.value.trim() || undefined)
+    saveLastParent(path.value.trim())
     path.value = ''
     name.value = ''
     nameManuallyEdited.value = false
@@ -151,19 +88,22 @@ function cancel() {
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <div class="flex flex-col gap-1">
           <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
-          <UInput
-            ref="modalInputRef"
-            v-model="path"
-            :icon="pathIcon"
+          <UInputMenu
+            :model-value="path"
+            autocomplete
+            :items="pathItems"
             :loading="pathLoading"
+            :icon="pathIcon"
+            ignore-filter
+            value-key="value"
             placeholder="/path/to/repository"
             autofocus
+            :content="{ hideWhenEmpty: true }"
             :color="isGitRepo ? 'success' : undefined"
             :highlight="isGitRepo"
             :ui="{ leadingIcon: isGitRepo ? 'text-success-500' : '' }"
-            @keydown.tab="onTabKey"
+            @update:model-value="onPathUpdate"
           />
-          <span class="text-xs text-neutral-400 dark:text-neutral-500">Type a path — Tab to autocomplete</span>
         </div>
 
         <div class="flex flex-col gap-1">
@@ -187,7 +127,7 @@ function cancel() {
             label="Add"
             type="submit"
             :loading="loading"
-            :disabled="!String(path).trim()"
+            :disabled="!path.trim()"
           />
         </div>
       </form>
@@ -206,19 +146,22 @@ function cancel() {
     <form class="flex flex-col gap-4" @submit.prevent="submit">
       <div class="flex flex-col gap-1">
         <label class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Repository path</label>
-        <UInput
-          ref="inlineInputRef"
-          v-model="path"
-          :icon="pathIcon"
+        <UInputMenu
+          :model-value="path"
+          autocomplete
+          :items="pathItems"
           :loading="pathLoading"
+          :icon="pathIcon"
+          ignore-filter
+          value-key="value"
           placeholder="/path/to/repository"
           autofocus
+          :content="{ hideWhenEmpty: true }"
           :color="isGitRepo ? 'success' : undefined"
           :highlight="isGitRepo"
           :ui="{ leadingIcon: isGitRepo ? 'text-success-500' : '' }"
-          @keydown.tab="onTabKey"
+          @update:model-value="onPathUpdate"
         />
-        <span class="text-xs text-neutral-400 dark:text-neutral-500">Type a path — Tab to autocomplete</span>
       </div>
 
       <div class="flex flex-col gap-1">
@@ -236,7 +179,7 @@ function cancel() {
           label="Add Repository"
           type="submit"
           :loading="loading"
-          :disabled="!String(path).trim()"
+          :disabled="!path.trim()"
         />
       </div>
     </form>

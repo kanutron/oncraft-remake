@@ -1,24 +1,21 @@
 import { useDebounceFn } from '@vueuse/core'
+import type { InputMenuItem } from '@nuxt/ui'
 
 const STORAGE_KEY = 'oncraft:lastRepoParent'
 
-interface DirEntry {
-  name: string
-  path: string
-  isGitRepo: boolean
-}
-
-export function usePathSuggestions(userInput: Ref<string>) {
+export function usePathSuggestions(pathValue: Ref<string>) {
   const config = useRuntimeConfig()
+  const items = ref<InputMenuItem[]>([])
   const loading = ref(false)
   const isGitRepo = ref(false)
-  const defaultRoot = ref('')
 
   const lastParent = ref(
     typeof localStorage !== 'undefined'
       ? localStorage.getItem(STORAGE_KEY) ?? ''
       : '',
   )
+
+  const defaultRoot = ref('')
 
   // Fetch the configured root from backend
   async function fetchRoot() {
@@ -33,9 +30,13 @@ export function usePathSuggestions(userInput: Ref<string>) {
 
   let fetchController: AbortController | null = null
 
-  // Current filtered matches from the last fetch
-  const matches = ref<DirEntry[]>([])
-  const firstMatch = computed(() => matches.value.length > 0 ? matches.value[0] : null)
+  /** Expand ~ to the configured root path */
+  function expandTilde(p: string): string {
+    if (defaultRoot.value && (p === '~' || p.startsWith('~/'))) {
+      return p.replace(/^~/, defaultRoot.value)
+    }
+    return p
+  }
 
   function getParentAndSegment(fullPath: string): { parent: string, segment: string } {
     if (!fullPath || fullPath === '/') return { parent: '/', segment: '' }
@@ -48,25 +49,21 @@ export function usePathSuggestions(userInput: Ref<string>) {
     }
   }
 
-  /** Expand ~ to the configured root path */
-  function expandTilde(p: string): string {
-    if (p === '~' || p.startsWith('~/')) {
-      return defaultRoot.value ? p.replace(/^~/, defaultRoot.value) : p
-    }
-    return p
-  }
+  // Raw entries from last fetch — used to resolve selections
+  const rawEntries = ref<Array<{ name: string, path: string, isGitRepo: boolean }>>([])
 
   const debouncedFetch = useDebounceFn(async (rawPath: string) => {
     const path = expandTilde(rawPath)
     const { parent, segment } = getParentAndSegment(path)
     if (!parent) {
-      matches.value = []
+      items.value = []
       return
     }
 
     // Don't fetch paths outside the configured root
     if (defaultRoot.value && parent !== defaultRoot.value && !parent.startsWith(`${defaultRoot.value}/`)) {
       matches.value = []
+      items.value = []
       return
     }
 
@@ -76,7 +73,7 @@ export function usePathSuggestions(userInput: Ref<string>) {
     loading.value = true
     try {
       const data = await $fetch<{
-        entries: DirEntry[]
+        entries: Array<{ name: string, path: string, isGitRepo: boolean }>
         parent: string | null
         isGitRepo: boolean
       }>(`${config.public.backendUrl}/filesystem/list-dirs`, {
@@ -84,33 +81,46 @@ export function usePathSuggestions(userInput: Ref<string>) {
         signal: fetchController.signal,
       })
 
-      matches.value = segment
+      rawEntries.value = data.entries
+
+      const filtered = segment
         ? data.entries.filter(e => e.name.toLowerCase().startsWith(segment.toLowerCase()))
         : data.entries
 
-      // Git repo detection
+      items.value = filtered.map(e => ({
+        label: e.name,
+        icon: e.isGitRepo ? 'i-simple-icons-git' : 'i-lucide-folder',
+        value: e.path,
+      })) as InputMenuItem[]
+
+      // Git repo detection: response-level for listed dir, entry-level for partial paths
       if (path.endsWith('/')) {
         isGitRepo.value = data.isGitRepo
       } else {
-        // Check if any matched entry IS the typed path and is a git repo
-        const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path
         isGitRepo.value = data.entries.some(
-          e => e.path === normalizedPath && e.isGitRepo,
+          e => e.path === path && e.isGitRepo,
         )
       }
     } catch {
-      matches.value = []
+      items.value = []
       isGitRepo.value = false
     } finally {
       loading.value = false
     }
-  }, 150)
+  }, 200)
 
-  watch(userInput, (val) => {
+  // Also keep filtered matches for Tab-completion
+  const matches = computed(() => {
+    return rawEntries.value
+  })
+
+  watch(pathValue, (val) => {
     if (val && typeof val === 'string') {
+      rawEntries.value = []
       debouncedFetch(val)
     } else {
-      matches.value = []
+      items.value = []
+      rawEntries.value = []
       isGitRepo.value = false
     }
   })
@@ -122,5 +132,11 @@ export function usePathSuggestions(userInput: Ref<string>) {
     localStorage.setItem(STORAGE_KEY, parent)
   }
 
-  return { matches, firstMatch, loading, isGitRepo, lastParent, saveLastParent, defaultRoot }
+  /** If val matches a known entry path, return it with trailing slash. Otherwise null. */
+  function resolveSelection(val: string): string | null {
+    const match = rawEntries.value.find(e => e.path === val)
+    return match ? `${match.path}/` : null
+  }
+
+  return { items, loading, isGitRepo, lastParent, saveLastParent, resolveSelection, defaultRoot }
 }
