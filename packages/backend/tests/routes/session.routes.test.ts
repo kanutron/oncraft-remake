@@ -116,4 +116,48 @@ describe("Session routes", () => {
 		});
 		expect(res.json().name).toBe("renamed");
 	});
+
+	test("DELETE /sessions/:id returns 409 when session has dirty worktree", async () => {
+		// Use a unique branch name to avoid worktree path collisions across test runs
+		const uniqueSuffix = repositoryId.slice(0, 8);
+		const branchName = `feat/dirty-route-${uniqueSuffix}`;
+
+		// Create a branch for worktree
+		const { GitService } = await import("../../src/services/git.service");
+		const gitService = new GitService();
+		await gitService.createBranch(repoPath, branchName);
+
+		// Create session with worktree
+		const created = (
+			await app.inject({
+				method: "POST",
+				url: `/repositories/${repositoryId}/sessions`,
+				payload: {
+					name: "dirty-session",
+					sourceBranch: branchName,
+					workBranch: branchName,
+					targetBranch: "master",
+				},
+			})
+		).json();
+
+		// Make worktree dirty
+		const fs = await import("node:fs");
+		fs.writeFileSync(`${created.worktreePath}/dirty.txt`, "uncommitted");
+
+		// DELETE without force should return 409
+		const res = await app.inject({
+			method: "DELETE",
+			url: `/sessions/${created.id}`,
+		});
+		expect(res.statusCode).toBe(409);
+		expect(res.json().code).toBe("DIRTY_STATE");
+
+		// DELETE with force should succeed
+		const forceRes = await app.inject({
+			method: "DELETE",
+			url: `/sessions/${created.id}?force=true`,
+		});
+		expect(forceRes.statusCode).toBe(204);
+	});
 });
