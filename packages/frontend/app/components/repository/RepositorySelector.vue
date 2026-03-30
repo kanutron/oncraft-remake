@@ -26,13 +26,15 @@ const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent,
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
 
-// Template refs for the input elements
-const modalInputRef = ref<any>(null)
-const inlineInputRef = ref<any>(null)
+// Guard to prevent completion from being treated as user input
+let settingCompletion = false
+
+// Template refs for the UInput components
+const modalInputRef = ref<{ inputRef: Ref<HTMLInputElement | null> } | null>(null)
+const inlineInputRef = ref<{ inputRef: Ref<HTMLInputElement | null> } | null>(null)
 
 function getInputEl(): HTMLInputElement | null {
-  const comp = modalInputRef.value ?? inlineInputRef.value
-  return comp?.$el?.querySelector?.('input') ?? null
+  return modalInputRef.value?.inputRef?.value ?? inlineInputRef.value?.inputRef?.value ?? null
 }
 
 // When a match arrives, inline-complete: show the full path with the suffix selected
@@ -42,21 +44,23 @@ watch(firstMatch, (match) => {
   if (!typed) return
   // Only complete if match starts with what was typed and is longer
   if (match.path.toLowerCase().startsWith(typed.toLowerCase()) && match.path.length > typed.length) {
+    settingCompletion = true
     path.value = match.path
     nextTick(() => {
       const el = getInputEl()
       if (el) {
+        el.value = match.path
         el.setSelectionRange(typed.length, match.path.length)
       }
+      settingCompletion = false
     })
   }
 })
 
-function onPathInput(e: Event) {
-  const el = e.target as HTMLInputElement
-  // The user typed or the selection was replaced — el.value is what they intend
-  userInput.value = el.value
-  path.value = el.value
+function onPathInput(val: string) {
+  if (settingCompletion) return
+  userInput.value = val
+  path.value = val
 }
 
 function onTabKey(e: KeyboardEvent) {
@@ -64,13 +68,16 @@ function onTabKey(e: KeyboardEvent) {
     e.preventDefault()
     // Accept the completion and descend into the directory
     const completed = `${firstMatch.value.path}/`
+    settingCompletion = true
     userInput.value = completed
     path.value = completed
     nextTick(() => {
       const el = getInputEl()
       if (el) {
+        el.value = completed
         el.setSelectionRange(completed.length, completed.length)
       }
+      settingCompletion = false
     })
   }
 }
@@ -148,7 +155,7 @@ function cancel() {
             :color="isGitRepo ? 'success' : undefined"
             :highlight="isGitRepo"
             :ui="{ leadingIcon: isGitRepo ? 'text-success-500' : '' }"
-            @input="onPathInput"
+            @update:model-value="onPathInput"
             @keydown.tab="onTabKey"
           />
           <span class="text-xs text-neutral-400 dark:text-neutral-500">Type a path — Tab to autocomplete</span>
