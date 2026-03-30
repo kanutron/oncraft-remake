@@ -14,73 +14,70 @@ const emit = defineEmits<{
 
 const repositoryStore = useRepositoryStore()
 
+// userInput: what the user actually typed — drives the composable fetching
+// path: what's displayed in the input — may include inline completion suffix
+const userInput = ref('')
 const path = ref('')
 const name = ref('')
 const loading = ref(false)
 const nameManuallyEdited = ref(false)
 
-const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent, defaultRoot } = usePathSuggestions(path)
+const { firstMatch, loading: pathLoading, isGitRepo, lastParent, saveLastParent, defaultRoot } = usePathSuggestions(userInput)
 
 const pathIcon = computed(() => isGitRepo.value ? 'i-simple-icons-git' : 'i-lucide-folder')
 
-// Track the user's typed length to know where completion starts
-let userTypedLength = 0
-let completionActive = false
-
-// Template refs for the input elements (modal and inline)
-const modalInputRef = ref<{ inputRef?: { value?: HTMLInputElement } } | null>(null)
-const inlineInputRef = ref<{ inputRef?: { value?: HTMLInputElement } } | null>(null)
+// Template refs for the input elements
+const modalInputRef = ref<any>(null)
+const inlineInputRef = ref<any>(null)
 
 function getInputEl(): HTMLInputElement | null {
-  return modalInputRef.value?.inputRef?.value ?? inlineInputRef.value?.inputRef?.value ?? null
+  const comp = modalInputRef.value ?? inlineInputRef.value
+  return comp?.$el?.querySelector?.('input') ?? null
 }
 
-// When matches arrive, inline-complete the first match
+// When a match arrives, inline-complete: show the full path with the suffix selected
 watch(firstMatch, (match) => {
-  if (!match || completionActive) return
-  const typed = path.value
-  // Only complete if the match starts with what was typed (after the last /)
-  if (match.path.toLowerCase().startsWith(typed.toLowerCase()) && match.path !== typed) {
-    completionActive = true
-    userTypedLength = typed.length
-    // Set the full path but select the completed portion
+  if (!match) return
+  const typed = userInput.value
+  if (!typed) return
+  // Only complete if match starts with what was typed and is longer
+  if (match.path.toLowerCase().startsWith(typed.toLowerCase()) && match.path.length > typed.length) {
     path.value = match.path
     nextTick(() => {
       const el = getInputEl()
       if (el) {
-        el.setSelectionRange(userTypedLength, match.path.length)
+        el.setSelectionRange(typed.length, match.path.length)
       }
-      completionActive = false
     })
   }
 })
 
 function onPathInput(e: Event) {
   const el = e.target as HTMLInputElement
-  // When user types, only take their actual input (not the selected completion)
+  // The user typed or the selection was replaced — el.value is what they intend
+  userInput.value = el.value
   path.value = el.value
-  userTypedLength = el.value.length
 }
 
 function onTabKey(e: KeyboardEvent) {
   if (firstMatch.value) {
     e.preventDefault()
-    // Accept the current completion and navigate into it
-    path.value = `${firstMatch.value.path}/`
-    userTypedLength = path.value.length
-    // Move cursor to end
+    // Accept the completion and descend into the directory
+    const completed = `${firstMatch.value.path}/`
+    userInput.value = completed
+    path.value = completed
     nextTick(() => {
       const el = getInputEl()
       if (el) {
-        el.setSelectionRange(path.value.length, path.value.length)
+        el.setSelectionRange(completed.length, completed.length)
       }
     })
   }
 }
 
-// Auto-fill name from last path segment
-watch(path, (val) => {
-  if (nameManuallyEdited.value || completionActive) return
+// Auto-fill name from last path segment (only from user-committed input)
+watch(userInput, (val) => {
+  if (nameManuallyEdited.value) return
   const segments = val.split('/').filter(Boolean)
   name.value = segments.length > 0 ? segments[segments.length - 1] : ''
 })
@@ -90,8 +87,9 @@ watch(open, (isOpen) => {
   if (isOpen && !path.value) {
     const prefill = lastParent.value || defaultRoot.value
     if (prefill) {
-      path.value = `${prefill}/`
-      userTypedLength = path.value.length
+      const initial = `${prefill}/`
+      userInput.value = initial
+      path.value = initial
     }
   }
 })
@@ -107,6 +105,7 @@ async function submit() {
   try {
     await repositoryStore.open(path.value.trim(), name.value.trim() || undefined)
     saveLastParent(path.value.trim())
+    userInput.value = ''
     path.value = ''
     name.value = ''
     nameManuallyEdited.value = false
@@ -118,6 +117,7 @@ async function submit() {
 }
 
 function cancel() {
+  userInput.value = ''
   path.value = ''
   name.value = ''
   nameManuallyEdited.value = false

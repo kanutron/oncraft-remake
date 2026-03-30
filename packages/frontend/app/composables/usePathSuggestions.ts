@@ -8,7 +8,7 @@ interface DirEntry {
   isGitRepo: boolean
 }
 
-export function usePathSuggestions(pathValue: Ref<string>) {
+export function usePathSuggestions(userInput: Ref<string>) {
   const config = useRuntimeConfig()
   const loading = ref(false)
   const isGitRepo = ref(false)
@@ -35,8 +35,6 @@ export function usePathSuggestions(pathValue: Ref<string>) {
 
   // Current filtered matches from the last fetch
   const matches = ref<DirEntry[]>([])
-
-  // The first match — used for inline completion
   const firstMatch = computed(() => matches.value.length > 0 ? matches.value[0] : null)
 
   function getParentAndSegment(fullPath: string): { parent: string, segment: string } {
@@ -53,6 +51,12 @@ export function usePathSuggestions(pathValue: Ref<string>) {
   const debouncedFetch = useDebounceFn(async (path: string) => {
     const { parent, segment } = getParentAndSegment(path)
     if (!parent) {
+      matches.value = []
+      return
+    }
+
+    // Don't fetch paths that are clearly outside the configured root
+    if (defaultRoot.value && !parent.startsWith(defaultRoot.value) && parent !== '/') {
       matches.value = []
       return
     }
@@ -75,12 +79,14 @@ export function usePathSuggestions(pathValue: Ref<string>) {
         ? data.entries.filter(e => e.name.toLowerCase().startsWith(segment.toLowerCase()))
         : data.entries
 
-      // Git repo detection for the current path
+      // Git repo detection
       if (path.endsWith('/')) {
         isGitRepo.value = data.isGitRepo
       } else {
+        // Check if any matched entry IS the typed path and is a git repo
+        const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path
         isGitRepo.value = data.entries.some(
-          e => e.path === path && e.isGitRepo,
+          e => e.path === normalizedPath && e.isGitRepo,
         )
       }
     } catch {
@@ -91,9 +97,8 @@ export function usePathSuggestions(pathValue: Ref<string>) {
     }
   }, 150)
 
-  watch(pathValue, (val) => {
+  watch(userInput, (val) => {
     if (val) {
-      matches.value = []
       debouncedFetch(val)
     } else {
       matches.value = []
