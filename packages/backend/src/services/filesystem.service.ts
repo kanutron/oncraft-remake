@@ -10,6 +10,7 @@ export interface DirEntry {
 export interface ListDirsResult {
 	entries: DirEntry[];
 	parent: string | null;
+	isGitRepo: boolean;
 }
 
 export class FilesystemService {
@@ -63,6 +64,6 @@ export class FilesystemService {
 				? parentDir
 				: null;
 
-		return { entries, parent };
+		return { entries, parent, isGitRepo: existsSync(join(resolved, ".git")) };
 	}
 }

@@ -113,6 +113,7 @@ function cancel() {
             placeholder="/path/to/repository"
             autofocus
             :content="{ hideWhenEmpty: true }"
+            :ui="{ base: '[direction:rtl] text-left' }"
             @update:model-value="onPathUpdate"
             @highlight="onHighlight"
             @keydown.tab="onTabKey"

@@ -61,6 +61,7 @@ export function usePathSuggestions(pathValue: Ref<string>) {
       const data = await $fetch<{
         entries: Array<{ name: string, path: string, isGitRepo: boolean }>
         parent: string | null
+        isGitRepo: boolean
       }>(`${config.public.backendUrl}/filesystem/list-dirs`, {
         query: { path: parent },
         signal: fetchController.signal,
@@ -78,11 +79,15 @@ export function usePathSuggestions(pathValue: Ref<string>) {
         value: e.path,
       })) as InputMenuItem[]
 
-      // Check if current full path matches a git repo entry
-      const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path
-      isGitRepo.value = data.entries.some(
-        e => e.path === normalizedPath && e.isGitRepo,
-      )
+      // Check git repo status: if we listed the directory itself (path ends with /),
+      // use the response-level flag; otherwise check entries for a matching path
+      if (path.endsWith('/')) {
+        isGitRepo.value = data.isGitRepo
+      } else {
+        isGitRepo.value = data.entries.some(
+          e => e.path === path && e.isGitRepo,
+        )
+      }
     } catch {
       items.value = []
       isGitRepo.value = false
