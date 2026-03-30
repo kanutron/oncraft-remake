@@ -67,6 +67,15 @@ describe("Filesystem routes", () => {
 		expect(res.json().code).toBe("NOT_FOUND");
 	});
 
+	test("GET /filesystem/root returns the resolved root path", async () => {
+		const res = await app.inject({
+			method: "GET",
+			url: "/filesystem/root",
+		});
+		expect(res.statusCode).toBe(200);
+		expect(res.json().root).toBe(testRoot);
+	});
+
 	test("GET /filesystem/list-dirs returns 400 when path query is missing", async () => {
 		const res = await app.inject({
 			method: "GET",

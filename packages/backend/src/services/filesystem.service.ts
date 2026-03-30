@@ -19,8 +19,12 @@ export class FilesystemService {
 		this.root = resolve(root.replace(/^~/, process.env.HOME || "/"));
 	}
 
+	getRoot(): string {
+		return this.root;
+	}
+
 	async listDirs(path: string): Promise<ListDirsResult> {
-		const resolved = resolve(path);
+		const resolved = resolve(path.replace(/^~/, process.env.HOME || "/"));
 
 		const rootWithSep = this.root.endsWith("/") ? this.root : `${this.root}/`;
 		if (!resolved.startsWith(rootWithSep) && resolved !== this.root) {

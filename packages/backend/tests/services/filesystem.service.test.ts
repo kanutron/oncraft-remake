@@ -85,6 +85,14 @@ describe("FilesystemService", () => {
 		).rejects.toThrow("NOT_FOUND");
 	});
 
+	test("listDirs resolves ~ to HOME (tilde paths do not crash)", async () => {
+		const homeService = new FilesystemService("~");
+		// ~ expands to HOME which is the root, so listing ~ should work
+		const result = await homeService.listDirs("~");
+		expect(result.entries).toBeDefined();
+		expect(Array.isArray(result.entries)).toBe(true);
+	});
+
 	test("listDirs rejects sibling path with shared prefix", async () => {
 		const sibling = `${testRoot}-sibling`;
 		mkdirSync(sibling, { recursive: true });

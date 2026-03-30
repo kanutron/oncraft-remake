@@ -5,6 +5,10 @@ export function registerFilesystemRoutes(
 	app: FastifyInstance,
 	filesystemService: FilesystemService,
 ): void {
+	app.get("/filesystem/root", async () => {
+		return { root: filesystemService.getRoot() };
+	});
+
 	app.get("/filesystem/list-dirs", async (request, reply) => {
 		const { path } = request.query as { path?: string };
 
