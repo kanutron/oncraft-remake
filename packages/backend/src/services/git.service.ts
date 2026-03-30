@@ -104,6 +104,15 @@ export class GitService {
 		return worktrees;
 	}
 
+	async getUnmergedCommitCount(
+		repoPath: string,
+		from: string,
+		to: string,
+	): Promise<number> {
+		const log = await this.gitFor(repoPath).log({ from, to });
+		return log.total;
+	}
+
 	async merge(path: string, source: string): Promise<void> {
 		await this.gitFor(path).merge([source]);
 	}

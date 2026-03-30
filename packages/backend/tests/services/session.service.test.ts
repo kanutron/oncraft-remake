@@ -4,7 +4,10 @@ import { EventBus } from "../../src/infra/event-bus";
 import { Store } from "../../src/infra/store";
 import { GitService } from "../../src/services/git.service";
 import { ProcessManager } from "../../src/services/process-manager";
-import { SessionService } from "../../src/services/session.service";
+import {
+	DirtyStateError,
+	SessionService,
+} from "../../src/services/session.service";
 import { makeRepository } from "../helpers/fixtures";
 import { createTestRepo } from "../helpers/test-repo";
 
@@ -178,13 +181,11 @@ describe("SessionService", () => {
 		const fs = await import("node:fs");
 		fs.writeFileSync(`${session.worktreePath}/dirty.txt`, "uncommitted work");
 
-		// Should throw without force
-		try {
-			await service.destroy(session.id);
-			expect(true).toBe(false); // should not reach
-		} catch (err) {
-			expect((err as Error).message).toContain("has uncommitted changes");
-		}
+		// Should throw a DirtyStateError without force
+		await expect(service.destroy(session.id)).rejects.toThrow(DirtyStateError);
+		await expect(service.destroy(session.id)).rejects.toThrow(
+			"has uncommitted changes",
+		);
 
 		// Session should still exist
 		expect(service.get(session.id)).not.toBeNull();
@@ -215,13 +216,9 @@ describe("SessionService", () => {
 		await git.add("new-file.txt");
 		await git.commit("add new file");
 
-		// Should throw without force
-		try {
-			await service.destroy(session.id);
-			expect(true).toBe(false);
-		} catch (err) {
-			expect((err as Error).message).toContain("unmerged commits");
-		}
+		// Should throw a DirtyStateError without force
+		await expect(service.destroy(session.id)).rejects.toThrow(DirtyStateError);
+		await expect(service.destroy(session.id)).rejects.toThrow("unmerged commits");
 
 		// Should succeed with force
 		await service.destroy(session.id, { force: true });

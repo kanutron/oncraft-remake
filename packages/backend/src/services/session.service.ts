@@ -5,6 +5,14 @@ import type { Session, SessionState } from "../types";
 import type { GitService } from "./git.service";
 import type { ProcessManager } from "./process-manager";
 
+export class DirtyStateError extends Error {
+	readonly code = "DIRTY_STATE" as const;
+	constructor(message: string) {
+		super(message);
+		this.name = "DirtyStateError";
+	}
+}
+
 interface CreateSessionOptions {
 	name: string;
 	sourceBranch: string;
@@ -247,26 +255,22 @@ export class SessionService {
 		const session = this.store.getSession(sessionId);
 		if (!session) return;
 
+		const repo = this.store.getRepository(session.repositoryId);
+
 		// Safety check: inspect worktree state before deletion
-		if (session.worktreePath && !opts.force) {
-			const repo = this.store.getRepository(session.repositoryId);
-			if (repo) {
-				await this.checkWorktreeSafety(session, repo.path);
-			}
+		if (session.worktreePath && !opts.force && repo) {
+			await this.checkWorktreeSafety(session, repo.path);
 		}
 
 		if (this.processManager.isAlive(sessionId)) {
 			await this.processManager.stop(sessionId);
 		}
 
-		if (session.worktreePath) {
-			const repo = this.store.getRepository(session.repositoryId);
-			if (repo) {
-				try {
-					await this.gitService.removeWorktree(repo.path, session.worktreePath);
-				} catch {
-					/* worktree may already be gone */
-				}
+		if (session.worktreePath && repo) {
+			try {
+				await this.gitService.removeWorktree(repo.path, session.worktreePath);
+			} catch {
+				/* worktree may already be gone */
 			}
 		}
 
@@ -316,7 +320,7 @@ export class SessionService {
 		// Check for uncommitted changes
 		const status = await this.gitService.getStatus(session.worktreePath);
 		if (status.files.length > 0) {
-			throw new Error(
+			throw new DirtyStateError(
 				`Session "${session.name}" has uncommitted changes (${status.files.length} files). Use force to delete anyway.`,
 			);
 		}
@@ -324,21 +328,19 @@ export class SessionService {
 		// Check for commits on work branch not merged into target
 		if (session.workBranch && session.targetBranch) {
 			try {
-				const simpleGit = (await import("simple-git")).default;
-				const git = simpleGit(repoPath);
-				const log = await git.log({
-					from: session.targetBranch,
-					to: session.workBranch,
-				});
-				if (log.total > 0) {
-					throw new Error(
-						`Session "${session.name}" has ${log.total} unmerged commits on "${session.workBranch}" (target: "${session.targetBranch}"). Use force to delete anyway.`,
+				const count = await this.gitService.getUnmergedCommitCount(
+					repoPath,
+					session.targetBranch,
+					session.workBranch,
+				);
+				if (count > 0) {
+					throw new DirtyStateError(
+						`Session "${session.name}" has ${count} unmerged commits on "${session.workBranch}" (target: "${session.targetBranch}"). Use force to delete anyway.`,
 					);
 				}
 			} catch (err) {
-				// If the error is ours (unmerged commits), rethrow
-				if ((err as Error).message.includes("unmerged commits")) throw err;
-				// Otherwise (git error), skip the check — don't block delete on git failures
+				if (err instanceof DirtyStateError) throw err;
+				// git failure — skip check
 			}
 		}
 	}
