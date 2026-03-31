@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Fully implemented.
+
 **Goal:** Rename domain model from Workspace/Session to Project/Repository/Session across the full stack.
 
 **Architecture:** Mechanical rename — no structural changes. Backend types flow through store → services → routes → server. Frontend mirrors the types and consumes the API. Tests mirror the source. A minimal Project entity is added last. All tasks are completed against the existing `master` branch in a dedicated worktree.
@@ -21,7 +23,7 @@ The type definitions are the foundation. Everything else depends on these.
 **Files:**
 - Modify: `packages/backend/src/types/index.ts`
 
-- [ ] **Step 1: Rename Workspace → Repository, workspaceId → repositoryId, event names**
+- [x] **Step 1: Rename Workspace → Repository, workspaceId → repositoryId, event names**
 
 Replace the full content of `packages/backend/src/types/index.ts`:
 
@@ -100,7 +102,7 @@ export interface GitChangeEvent {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add packages/backend/src/types/index.ts
@@ -116,7 +118,7 @@ The SQLite persistence layer — table names, column names, and all CRUD method 
 **Files:**
 - Modify: `packages/backend/src/infra/store.ts`
 
-- [ ] **Step 1: Update store with renamed tables, columns, and methods**
+- [x] **Step 1: Update store with renamed tables, columns, and methods**
 
 Replace the full content of `packages/backend/src/infra/store.ts`:
 
@@ -297,13 +299,13 @@ export class Store {
 }
 ```
 
-- [ ] **Step 2: Delete any existing oncraft.db (schema is not backward-compatible)**
+- [x] **Step 2: Delete any existing oncraft.db (schema is not backward-compatible)**
 
 ```bash
 rm -f packages/backend/oncraft.db
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/backend/src/infra/store.ts
@@ -321,7 +323,7 @@ Rename workspace.service.ts → repository.service.ts and update session.service
 - Delete: `packages/backend/src/services/workspace.service.ts`
 - Modify: `packages/backend/src/services/session.service.ts`
 
-- [ ] **Step 1: Create repository.service.ts**
+- [x] **Step 1: Create repository.service.ts**
 
 Create `packages/backend/src/services/repository.service.ts`:
 
@@ -398,13 +400,13 @@ export class RepositoryService {
 }
 ```
 
-- [ ] **Step 2: Delete old workspace.service.ts**
+- [x] **Step 2: Delete old workspace.service.ts**
 
 ```bash
 rm packages/backend/src/services/workspace.service.ts
 ```
 
-- [ ] **Step 3: Update session.service.ts**
+- [x] **Step 3: Update session.service.ts**
 
 Replace the full content of `packages/backend/src/services/session.service.ts`:
 
@@ -741,7 +743,7 @@ export class SessionService {
 }
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/backend/src/services/repository.service.ts packages/backend/src/services/session.service.ts
@@ -764,7 +766,7 @@ Rename workspace.routes.ts → repository.routes.ts, update all route paths and 
 - Modify: `packages/backend/src/infra/git-watcher.ts`
 - Modify: `packages/backend/src/server.ts`
 
-- [ ] **Step 1: Create repository.routes.ts**
+- [x] **Step 1: Create repository.routes.ts**
 
 Create `packages/backend/src/routes/repository.routes.ts`:
 
@@ -810,13 +812,13 @@ export function registerRepositoryRoutes(
 }
 ```
 
-- [ ] **Step 2: Delete old workspace.routes.ts**
+- [x] **Step 2: Delete old workspace.routes.ts**
 
 ```bash
 rm packages/backend/src/routes/workspace.routes.ts
 ```
 
-- [ ] **Step 3: Update session.routes.ts — change /workspaces/ to /repositories/ and param names**
+- [x] **Step 3: Update session.routes.ts — change /workspaces/ to /repositories/ and param names**
 
 Replace the full content of `packages/backend/src/routes/session.routes.ts`:
 
@@ -962,7 +964,7 @@ export function registerSessionRoutes(
 }
 ```
 
-- [ ] **Step 4: Update git.routes.ts — change /workspaces/ to /repositories/ and use RepositoryService**
+- [x] **Step 4: Update git.routes.ts — change /workspaces/ to /repositories/ and use RepositoryService**
 
 Replace the full content of `packages/backend/src/routes/git.routes.ts`:
 
@@ -1082,7 +1084,7 @@ export function registerGitRoutes(
 }
 ```
 
-- [ ] **Step 5: Update ws.routes.ts — rename event names**
+- [x] **Step 5: Update ws.routes.ts — rename event names**
 
 Replace the full content of `packages/backend/src/routes/ws.routes.ts`:
 
@@ -1206,7 +1208,7 @@ export function registerWSRoutes(
 }
 ```
 
-- [ ] **Step 6: Update git-watcher.ts — rename event from git:branch-changed to repository:git-changed**
+- [x] **Step 6: Update git-watcher.ts — rename event from git:branch-changed to repository:git-changed**
 
 In `packages/backend/src/infra/git-watcher.ts`, change the event name in `checkBranch`:
 
@@ -1217,7 +1219,7 @@ this.eventBus.emit(path, "git:branch-changed", {
 this.eventBus.emit(path, "repository:git-changed", {
 ```
 
-- [ ] **Step 7: Update server.ts — rewire imports and service names**
+- [x] **Step 7: Update server.ts — rewire imports and service names**
 
 Replace the full content of `packages/backend/src/server.ts`:
 
@@ -1282,7 +1284,7 @@ await app.listen({ port, host: "0.0.0.0" });
 console.log(`OnCraft backend listening on port ${port}`);
 ```
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/backend/src/routes/repository.routes.ts packages/backend/src/routes/session.routes.ts packages/backend/src/routes/git.routes.ts packages/backend/src/routes/ws.routes.ts packages/backend/src/infra/git-watcher.ts packages/backend/src/server.ts
@@ -1305,7 +1307,7 @@ Update every backend test file to use the new naming.
 - Modify: `packages/backend/tests/routes/git.routes.test.ts`
 - Modify: `packages/backend/tests/integration/full-flow.test.ts`
 
-- [ ] **Step 1: Update store.test.ts**
+- [x] **Step 1: Update store.test.ts**
 
 Apply these renames throughout `packages/backend/tests/infra/store.test.ts`:
 - `createWorkspace` → `createRepository`
@@ -1318,7 +1320,7 @@ Apply these renames throughout `packages/backend/tests/infra/store.test.ts`:
 - All test descriptions: "workspace" → "repository"
 - The `Workspace` type data: keep field structure (id, path, name, etc.)
 
-- [ ] **Step 2: Rename workspace.service.test.ts → repository.service.test.ts and update content**
+- [x] **Step 2: Rename workspace.service.test.ts → repository.service.test.ts and update content**
 
 Create `packages/backend/tests/services/repository.service.test.ts` with updated content:
 - Import `RepositoryService` from `../../src/services/repository.service`
@@ -1332,7 +1334,7 @@ Create `packages/backend/tests/services/repository.service.test.ts` with updated
 git rm packages/backend/tests/services/workspace.service.test.ts
 ```
 
-- [ ] **Step 3: Update session.service.test.ts**
+- [x] **Step 3: Update session.service.test.ts**
 
 Apply these renames throughout `packages/backend/tests/services/session.service.test.ts`:
 - `workspaceId` → `repositoryId` (in session creation params and assertions)
@@ -1341,7 +1343,7 @@ Apply these renames throughout `packages/backend/tests/services/session.service.
 - `"git:branch-changed"` → `"repository:git-changed"` (event name)
 - `"session:state"` → `"session:state-changed"` (event name)
 
-- [ ] **Step 4: Rename workspace.routes.test.ts → repository.routes.test.ts and update content**
+- [x] **Step 4: Rename workspace.routes.test.ts → repository.routes.test.ts and update content**
 
 Create `packages/backend/tests/routes/repository.routes.test.ts` with updated content:
 - All `/workspaces` paths → `/repositories`
@@ -1355,7 +1357,7 @@ Create `packages/backend/tests/routes/repository.routes.test.ts` with updated co
 git rm packages/backend/tests/routes/workspace.routes.test.ts
 ```
 
-- [ ] **Step 5: Update session.routes.test.ts**
+- [x] **Step 5: Update session.routes.test.ts**
 
 Apply these renames throughout `packages/backend/tests/routes/session.routes.test.ts`:
 - `/workspaces/${workspaceId}/sessions` → `/repositories/${repositoryId}/sessions`
@@ -1363,7 +1365,7 @@ Apply these renames throughout `packages/backend/tests/routes/session.routes.tes
 - `store.createWorkspace` → `store.createRepository`
 - `workspaceId` in session objects → `repositoryId`
 
-- [ ] **Step 6: Update git.routes.test.ts**
+- [x] **Step 6: Update git.routes.test.ts**
 
 Apply these renames throughout `packages/backend/tests/routes/git.routes.test.ts`:
 - `/workspaces/${id}/git/` → `/repositories/${id}/git/`
@@ -1373,7 +1375,7 @@ Apply these renames throughout `packages/backend/tests/routes/git.routes.test.ts
 - `store.createWorkspace` → `store.createRepository`
 - `workspaceId` → `repositoryId`
 
-- [ ] **Step 7: Update full-flow.test.ts**
+- [x] **Step 7: Update full-flow.test.ts**
 
 Apply these renames throughout `packages/backend/tests/integration/full-flow.test.ts`:
 - All `/workspaces` API paths → `/repositories`
@@ -1381,7 +1383,7 @@ Apply these renames throughout `packages/backend/tests/integration/full-flow.tes
 - `workspace` variables → `repo`
 - Test descriptions: "workspace" → "repository"
 
-- [ ] **Step 8: Run all backend tests**
+- [x] **Step 8: Run all backend tests**
 
 ```bash
 task test:backend
@@ -1389,7 +1391,7 @@ task test:backend
 
 Expected: All tests pass.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add packages/backend/tests/
@@ -1407,7 +1409,7 @@ git commit -m "test(backend): update all tests for repository terminology"
 - Modify: `packages/frontend/app/stores/session.store.ts`
 - Modify: `packages/frontend/app/composables/useWebSocket.ts`
 
-- [ ] **Step 1: Update frontend types/index.ts**
+- [x] **Step 1: Update frontend types/index.ts**
 
 Replace the full content of `packages/frontend/app/types/index.ts`:
 
@@ -1452,7 +1454,7 @@ export interface ChatMessage {
 }
 ```
 
-- [ ] **Step 2: Create repository.store.ts**
+- [x] **Step 2: Create repository.store.ts**
 
 Create `packages/frontend/app/stores/repository.store.ts`:
 
@@ -1511,13 +1513,13 @@ export const useRepositoryStore = defineStore('repository', () => {
 })
 ```
 
-- [ ] **Step 3: Delete old workspace.store.ts**
+- [x] **Step 3: Delete old workspace.store.ts**
 
 ```bash
 rm packages/frontend/app/stores/workspace.store.ts
 ```
 
-- [ ] **Step 4: Update session.store.ts**
+- [x] **Step 4: Update session.store.ts**
 
 Replace the full content of `packages/frontend/app/stores/session.store.ts`:
 
@@ -1611,7 +1613,7 @@ export const useSessionStore = defineStore('session', () => {
 })
 ```
 
-- [ ] **Step 5: Update useWebSocket.ts — rename event names**
+- [x] **Step 5: Update useWebSocket.ts — rename event names**
 
 Replace the full content of `packages/frontend/app/composables/useWebSocket.ts`:
 
@@ -1689,7 +1691,7 @@ export function useWebSocket() {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/frontend/app/types/index.ts packages/frontend/app/stores/repository.store.ts packages/frontend/app/stores/session.store.ts packages/frontend/app/composables/useWebSocket.ts
@@ -1711,13 +1713,13 @@ Update all Vue components that reference workspace terminology.
 - Modify: `packages/frontend/app/components/session/SessionTabBar.vue`
 - Modify: `packages/frontend/app/app.vue`
 
-- [ ] **Step 1: Create repository component directory**
+- [x] **Step 1: Create repository component directory**
 
 ```bash
 mkdir -p packages/frontend/app/components/repository
 ```
 
-- [ ] **Step 2: Create RepositoryTabBar.vue**
+- [x] **Step 2: Create RepositoryTabBar.vue**
 
 Create `packages/frontend/app/components/repository/RepositoryTabBar.vue`:
 
@@ -1782,7 +1784,7 @@ function closeRepository(id: string) {
 </template>
 ```
 
-- [ ] **Step 3: Create RepositorySelector.vue**
+- [x] **Step 3: Create RepositorySelector.vue**
 
 Create `packages/frontend/app/components/repository/RepositorySelector.vue`:
 
@@ -1919,7 +1921,7 @@ function cancel() {
 </template>
 ```
 
-- [ ] **Step 4: Create RepositoryView.vue**
+- [x] **Step 4: Create RepositoryView.vue**
 
 Create `packages/frontend/app/components/repository/RepositoryView.vue`:
 
@@ -1963,13 +1965,13 @@ watch(() => props.repository.id, (id) => {
 </template>
 ```
 
-- [ ] **Step 5: Delete old workspace components**
+- [x] **Step 5: Delete old workspace components**
 
 ```bash
 rm -r packages/frontend/app/components/workspace
 ```
 
-- [ ] **Step 6: Update NewSessionDialog.vue — change workspaceId prop to repositoryId**
+- [x] **Step 6: Update NewSessionDialog.vue — change workspaceId prop to repositoryId**
 
 Replace the full content of `packages/frontend/app/components/session/NewSessionDialog.vue`:
 
@@ -2123,7 +2125,7 @@ async function submit() {
 </template>
 ```
 
-- [ ] **Step 7: Update SessionTabBar.vue — change workspaceId prop to repositoryId**
+- [x] **Step 7: Update SessionTabBar.vue — change workspaceId prop to repositoryId**
 
 Replace the full content of `packages/frontend/app/components/session/SessionTabBar.vue`:
 
@@ -2211,7 +2213,7 @@ const activeTab = computed({
 </template>
 ```
 
-- [ ] **Step 8: Update app.vue**
+- [x] **Step 8: Update app.vue**
 
 Replace the full content of `packages/frontend/app/app.vue`:
 
@@ -2247,7 +2249,7 @@ onMounted(() => {
 </template>
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add packages/frontend/app/
@@ -2263,7 +2265,7 @@ git commit -m "refactor(frontend): rename workspace components and stores to rep
 - Modify: `packages/frontend/tests/stores/session.store.test.ts`
 - Modify: `packages/frontend/tests/setup.ts` (if it references workspace)
 
-- [ ] **Step 1: Create repository.store.test.ts and delete workspace.store.test.ts**
+- [x] **Step 1: Create repository.store.test.ts and delete workspace.store.test.ts**
 
 Create `packages/frontend/tests/stores/repository.store.test.ts` with updated content:
 - Import `useRepositoryStore` instead of `useWorkspaceStore`
@@ -2280,7 +2282,7 @@ Create `packages/frontend/tests/stores/repository.store.test.ts` with updated co
 git rm packages/frontend/tests/stores/workspace.store.test.ts
 ```
 
-- [ ] **Step 2: Update session.store.test.ts**
+- [x] **Step 2: Update session.store.test.ts**
 
 Apply these renames throughout `packages/frontend/tests/stores/session.store.test.ts`:
 - `workspaceId` → `repositoryId` (in session objects and function calls)
@@ -2289,11 +2291,11 @@ Apply these renames throughout `packages/frontend/tests/stores/session.store.tes
 - `fetchForWorkspace` → `fetchForRepository`
 - `/workspaces/` API paths → `/repositories/`
 
-- [ ] **Step 3: Update setup.ts if needed**
+- [x] **Step 3: Update setup.ts if needed**
 
 Check `packages/frontend/tests/setup.ts` for any workspace references and update.
 
-- [ ] **Step 4: Run all frontend tests**
+- [x] **Step 4: Run all frontend tests**
 
 ```bash
 task test:frontend
@@ -2301,7 +2303,7 @@ task test:frontend
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/frontend/tests/
@@ -2323,7 +2325,7 @@ Add the Project layer — minimal for now (type, service, route, store).
 - Create: `packages/frontend/app/stores/project.store.ts`
 - Modify: `packages/frontend/app/types/index.ts` (add Project type)
 
-- [ ] **Step 1: Add Project type to backend types**
+- [x] **Step 1: Add Project type to backend types**
 
 Add to the top of `packages/backend/src/types/index.ts`:
 
@@ -2336,7 +2338,7 @@ export interface Project {
 }
 ```
 
-- [ ] **Step 2: Add project table to store**
+- [x] **Step 2: Add project table to store**
 
 Add to the `migrate()` method in `packages/backend/src/infra/store.ts`, after the repositories table:
 
@@ -2387,7 +2389,7 @@ Add these methods to the Store class:
 	}
 ```
 
-- [ ] **Step 3: Create project.service.ts**
+- [x] **Step 3: Create project.service.ts**
 
 Create `packages/backend/src/services/project.service.ts`:
 
@@ -2428,7 +2430,7 @@ export class ProjectService {
 }
 ```
 
-- [ ] **Step 4: Create project.routes.ts**
+- [x] **Step 4: Create project.routes.ts**
 
 Create `packages/backend/src/routes/project.routes.ts`:
 
@@ -2457,7 +2459,7 @@ export function registerProjectRoutes(
 }
 ```
 
-- [ ] **Step 5: Wire project into server.ts**
+- [x] **Step 5: Wire project into server.ts**
 
 In `packages/backend/src/server.ts`, add the import and wiring:
 
@@ -2477,7 +2479,7 @@ Add route registration (after `app.get("/health", ...)`):
 registerProjectRoutes(app, projectService);
 ```
 
-- [ ] **Step 6: Add Project type to frontend types**
+- [x] **Step 6: Add Project type to frontend types**
 
 Add to the top of `packages/frontend/app/types/index.ts`:
 
@@ -2490,7 +2492,7 @@ export interface Project {
 }
 ```
 
-- [ ] **Step 7: Create frontend project.store.ts**
+- [x] **Step 7: Create frontend project.store.ts**
 
 Create `packages/frontend/app/stores/project.store.ts`:
 
@@ -2520,7 +2522,7 @@ export const useProjectStore = defineStore('project', () => {
 })
 ```
 
-- [ ] **Step 8: Run all tests**
+- [x] **Step 8: Run all tests**
 
 ```bash
 task test:all
@@ -2528,7 +2530,7 @@ task test:all
 
 Expected: All tests pass.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add packages/backend/src/types/index.ts packages/backend/src/infra/store.ts packages/backend/src/services/project.service.ts packages/backend/src/routes/project.routes.ts packages/backend/src/server.ts packages/frontend/app/types/index.ts packages/frontend/app/stores/project.store.ts
@@ -2543,17 +2545,17 @@ git commit -m "feat: add minimal Project entity (type, service, route, store)"
 - Modify: `AGENTS.md`
 - Modify: `.context/agents/spec/oncraft-remake/design.md`
 
-- [ ] **Step 1: Update AGENTS.md**
+- [x] **Step 1: Update AGENTS.md**
 
 Update the Purpose section to reflect new terminology:
 - "git workspaces" → "git repositories"
 - Update any references to workspace in operations descriptions
 
-- [ ] **Step 2: Update original design spec**
+- [x] **Step 2: Update original design spec**
 
 In `.context/agents/spec/oncraft-remake/design.md`, update terminology references to match the new Project > Repository > Session model. Reference the terminology rename spec for the full rationale.
 
-- [ ] **Step 3: Run lint check**
+- [x] **Step 3: Run lint check**
 
 ```bash
 task lint:check
@@ -2561,7 +2563,7 @@ task lint:check
 
 Expected: Zero errors.
 
-- [ ] **Step 4: Run full test suite**
+- [x] **Step 4: Run full test suite**
 
 ```bash
 task test:all
@@ -2569,7 +2571,7 @@ task test:all
 
 Expected: All tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add AGENTS.md .context/agents/spec/

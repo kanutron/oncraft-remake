@@ -10,7 +10,7 @@
 
 **Spec:** `.context/agents/spec/lifecycle-events/plan.md` (this file)
 
-**Status:** Tasks 1–7 completed. Pending tasks 8–12 added for remaining lifecycle event coverage.
+**Status:** Tasks 1–7 completed. Tasks 8–12 pending (project:updated, session:updated, frontend WS handlers, repo close confirmation, async EventBus).
 
 ---
 

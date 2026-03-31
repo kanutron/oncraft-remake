@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Fully implemented. Note: path composable was implemented as `usePathBrowser` (not `usePathSuggestions` as originally specced).
+
 **Goal:** Add path autocomplete with git detection to the Add Repository dialog, and branch autocomplete with strict/free modes to the New Session dialog.
 
-**Architecture:** Two backend additions (FilesystemService + route) and two frontend composables (`usePathSuggestions`, `useBranchSuggestions`) wired to NuxtUI's `UInputMenu` component. No wrapper components — composables provide data, `UInputMenu` handles UX natively.
+**Architecture:** Two backend additions (FilesystemService + route) and two frontend composables (`usePathBrowser`, `useBranchSuggestions`) wired to NuxtUI's `UInputMenu` component. No wrapper components — composables provide data, `UInputMenu` handles UX natively.
 
 **Tech Stack:** Bun + Fastify (backend), Nuxt 4 + NuxtUI v4 `UInputMenu` (frontend), `bun:test` (testing)
 
@@ -33,7 +35,7 @@
 - Create: `packages/backend/src/services/filesystem.service.ts`
 - Create: `packages/backend/tests/services/filesystem.service.test.ts`
 
-- [ ] **Step 1: Write failing tests for FilesystemService**
+- [x] **Step 1: Write failing tests for FilesystemService**
 
 ```ts
 // packages/backend/tests/services/filesystem.service.test.ts
@@ -126,12 +128,12 @@ describe("FilesystemService", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/backend && bun test tests/services/filesystem.service.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement FilesystemService**
+- [x] **Step 3: Implement FilesystemService**
 
 ```ts
 // packages/backend/src/services/filesystem.service.ts
@@ -195,12 +197,12 @@ export class FilesystemService {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd packages/backend && bun test tests/services/filesystem.service.test.ts`
 Expected: All 9 tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/backend/src/services/filesystem.service.ts packages/backend/tests/services/filesystem.service.test.ts
@@ -217,7 +219,7 @@ git commit -m "feat(backend): add FilesystemService with directory listing and g
 - Modify: `packages/backend/src/server.ts`
 - Modify: `packages/backend/tests/helpers/build-app.ts`
 
-- [ ] **Step 1: Write failing route tests**
+- [x] **Step 1: Write failing route tests**
 
 ```ts
 // packages/backend/tests/routes/filesystem.routes.test.ts
@@ -300,12 +302,12 @@ describe("Filesystem routes", () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd packages/backend && bun test tests/routes/filesystem.routes.test.ts`
 Expected: FAIL — `buildApp` doesn't accept `fsRoot` / route not registered
 
-- [ ] **Step 3: Implement filesystem route**
+- [x] **Step 3: Implement filesystem route**
 
 ```ts
 // packages/backend/src/routes/filesystem.routes.ts
@@ -341,7 +343,7 @@ export function registerFilesystemRoutes(
 }
 ```
 
-- [ ] **Step 4: Update `build-app.ts` to accept `fsRoot` and register filesystem routes**
+- [x] **Step 4: Update `build-app.ts` to accept `fsRoot` and register filesystem routes**
 
 Update `packages/backend/tests/helpers/build-app.ts` to:
 
@@ -411,7 +413,7 @@ export async function buildApp(opts?: { fsRoot?: string }) {
 }
 ```
 
-- [ ] **Step 5: Register filesystem routes in `server.ts`**
+- [x] **Step 5: Register filesystem routes in `server.ts`**
 
 Add these lines to `packages/backend/src/server.ts`:
 
@@ -431,17 +433,17 @@ After the `registerGitRoutes(...)` line, add:
 registerFilesystemRoutes(app, filesystemService);
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `cd packages/backend && bun test tests/routes/filesystem.routes.test.ts`
 Expected: All 5 tests PASS
 
-- [ ] **Step 7: Run all existing backend tests to check for regressions**
+- [x] **Step 7: Run all existing backend tests to check for regressions**
 
 Run: `task test:backend`
 Expected: All tests PASS (existing tests call `buildApp()` without args, which still works)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/backend/src/routes/filesystem.routes.ts packages/backend/tests/routes/filesystem.routes.test.ts packages/backend/src/server.ts packages/backend/tests/helpers/build-app.ts
@@ -455,7 +457,7 @@ git commit -m "feat(backend): add filesystem list-dirs endpoint with root scopin
 **Files:**
 - Create: `packages/frontend/app/composables/usePathSuggestions.ts`
 
-- [ ] **Step 1: Create the composable**
+- [x] **Step 1: Create the composable**
 
 ```ts
 // packages/frontend/app/composables/usePathSuggestions.ts
@@ -563,12 +565,12 @@ export function usePathSuggestions(pathValue: Ref<string>) {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `task dev:frontend`
 Expected: No TypeScript compilation errors in the terminal output. Stop the dev server after checking.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/frontend/app/composables/usePathSuggestions.ts
@@ -582,7 +584,7 @@ git commit -m "feat(frontend): add usePathSuggestions composable for path autoco
 **Files:**
 - Create: `packages/frontend/app/composables/useBranchSuggestions.ts`
 
-- [ ] **Step 1: Create the composable**
+- [x] **Step 1: Create the composable**
 
 ```ts
 // packages/frontend/app/composables/useBranchSuggestions.ts
@@ -626,12 +628,12 @@ export function useBranchSuggestions(repositoryId: Ref<string>) {
 }
 ```
 
-- [ ] **Step 2: Verify it compiles**
+- [x] **Step 2: Verify it compiles**
 
 Run: `task dev:frontend`
 Expected: No TypeScript compilation errors. Stop the dev server after checking.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/frontend/app/composables/useBranchSuggestions.ts
@@ -645,7 +647,7 @@ git commit -m "feat(frontend): add useBranchSuggestions composable for branch au
 **Files:**
 - Modify: `packages/frontend/app/components/repository/RepositorySelector.vue`
 
-- [ ] **Step 1: Update the component**
+- [x] **Step 1: Update the component**
 
 Replace the full content of `packages/frontend/app/components/repository/RepositorySelector.vue` with:
 
@@ -827,7 +829,7 @@ function cancel() {
 </template>
 ```
 
-- [ ] **Step 2: Smoke test in the browser**
+- [x] **Step 2: Smoke test in the browser**
 
 Run: `task dev`
 Steps:
@@ -838,7 +840,7 @@ Steps:
 5. Select a directory — verify the name field auto-fills with the directory name
 6. Close and re-open the dialog — verify the last-used parent is pre-filled
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/frontend/app/components/repository/RepositorySelector.vue
@@ -852,7 +854,7 @@ git commit -m "feat(frontend): upgrade repository path field to autocomplete wit
 **Files:**
 - Modify: `packages/frontend/app/components/session/NewSessionDialog.vue`
 
-- [ ] **Step 1: Update the component**
+- [x] **Step 1: Update the component**
 
 Replace the full content of `packages/frontend/app/components/session/NewSessionDialog.vue` with:
 
@@ -1028,7 +1030,7 @@ async function submit() {
 </template>
 ```
 
-- [ ] **Step 2: Smoke test in the browser**
+- [x] **Step 2: Smoke test in the browser**
 
 Run: `task dev`
 Steps:
@@ -1041,12 +1043,12 @@ Steps:
 7. Toggle "Work isolated" and verify work branch field appears with same behavior as target branch
 8. Fill all fields and create a session — verify it works
 
-- [ ] **Step 3: Run all tests**
+- [x] **Step 3: Run all tests**
 
 Run: `task test:all`
 Expected: All tests PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add packages/frontend/app/components/session/NewSessionDialog.vue
@@ -1057,17 +1059,17 @@ git commit -m "feat(frontend): upgrade session branch fields to autocomplete wit
 
 ### Task 7: Final lint check and cleanup
 
-- [ ] **Step 1: Run linter**
+- [x] **Step 1: Run linter**
 
 Run: `task lint:check`
 Expected: Zero errors. Fix any issues that arise.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run: `task test:all`
 Expected: All tests PASS.
 
-- [ ] **Step 3: Commit any lint fixes**
+- [x] **Step 3: Commit any lint fixes**
 
 ```bash
 git add -A
