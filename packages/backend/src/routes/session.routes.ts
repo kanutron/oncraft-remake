@@ -117,7 +117,7 @@ export function registerSessionRoutes(
 		}
 	});
 
-	app.post("/sessions/:id/reply", async (request, reply) => {
+	app.post("/sessions/:id/reply", async (request, _reply) => {
 		const { id } = request.params as { id: string };
 		const { toolUseID, decision } = request.body as {
 			toolUseID: string;

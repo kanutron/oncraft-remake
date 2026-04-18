@@ -5,7 +5,7 @@ export function registerProjectRoutes(
 	app: FastifyInstance,
 	projectService: ProjectService,
 ): void {
-	app.get("/project", async (request, reply) => {
+	app.get("/project", async (_request, reply) => {
 		const project = projectService.get();
 		if (!project)
 			return reply
