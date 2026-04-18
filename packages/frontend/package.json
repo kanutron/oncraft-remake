@@ -19,9 +19,9 @@
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.102",
     "@iconify-json/simple-icons": "^1.2.78",
-    "@nuxt/test-utils": "^3.23.0",
+    "@nuxt/test-utils": "^4.0.2",
     "@vue/test-utils": "^2.4.6",
-    "vitest": "^2.1.9",
+    "vitest": "^4.1.4",
     "vue": "^3.5.32"
   }
 }
