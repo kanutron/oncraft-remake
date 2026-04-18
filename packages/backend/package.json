@@ -9,15 +9,15 @@
     "lint": "bunx biome check src/ tests/"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.76",
-    "fastify": "^5.0.0",
-    "@fastify/websocket": "^11.0.0",
-    "@fastify/cors": "^10.0.0",
-    "simple-git": "^3.27.0",
-    "chokidar": "^4.0.0"
+    "@anthropic-ai/claude-agent-sdk": "^0.2.114",
+    "@fastify/cors": "^10.1.0",
+    "@fastify/websocket": "^11.2.0",
+    "chokidar": "^4.0.3",
+    "fastify": "^5.8.5",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
-    "bun-types": "latest",
-    "@biomejs/biome": "^1.9.0"
+    "@biomejs/biome": "^1.9.4",
+    "bun-types": "latest"
   }
 }
