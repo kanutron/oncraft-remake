@@ -47,3 +47,35 @@ describe('formatToolOutput — default', () => {
     expect(md).toContain('```\nraw text\n```')
   })
 })
+
+describe('formatToolInput — Edit', () => {
+  it('produces a unified diff fenced as diff', () => {
+    const md = formatToolInput('Edit', {
+      file_path: 'src/foo.ts',
+      old_string: 'a\nb\nc',
+      new_string: 'a\nB\nc',
+    })
+    expect(md).toContain('```diff')
+    expect(md).toContain('-b')
+    expect(md).toContain('+B')
+    expect(md).toContain('src/foo.ts')
+  })
+})
+
+describe('formatToolInput — Write', () => {
+  it('renders content in a fenced block using language from extension', () => {
+    const md = formatToolInput('Write', {
+      file_path: 'src/x.ts',
+      content: 'export const x = 1',
+    })
+    expect(md.startsWith('```ts\n')).toBe(true)
+    expect(md).toContain('export const x = 1')
+  })
+})
+
+describe('formatToolOutput — Read', () => {
+  it('renders Read content using language from file_path in tool input', () => {
+    const md = formatToolOutput('Read', 'const x = 1\n', { file_path: 'a.ts' })
+    expect(md.startsWith('```ts\n')).toBe(true)
+  })
+})

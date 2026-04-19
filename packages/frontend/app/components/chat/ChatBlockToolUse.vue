@@ -34,7 +34,9 @@ const inputSummary = computed(() => {
   return JSON.stringify(input)
 })
 const inputMd = computed(() => formatToolInput(props.data.name, props.data.input))
-const outputMd = computed(() => formatToolOutput(props.data.name, props.data.tool_result?.content))
+const outputMd = computed(() =>
+  formatToolOutput(props.data.name, props.data.tool_result?.content, props.data.input),
+)
 
 const isError = computed(() => props.status === 'error')
 const isStreaming = computed(() => props.status === 'streaming' || props.status === 'running')

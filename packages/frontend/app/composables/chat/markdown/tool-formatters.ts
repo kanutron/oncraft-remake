@@ -1,3 +1,6 @@
+import { buildUnifiedDiff } from './build-unified-diff'
+import { detectLangFromPath } from './detect-lang'
+
 function fence(lang: string, body: string): string {
   return '```' + lang + '\n' + body + '\n```'
 }
@@ -22,16 +25,39 @@ export function formatToolInput(name: string | undefined, input: unknown): strin
   if (input === undefined || input === null) return ''
   const tool = name ?? ''
 
-  if (tool === 'Bash' && typeof input === 'object' && input && 'command' in input) {
-    const cmd = String((input as { command: unknown }).command ?? '')
-    return fence('bash', cmd)
+  if (typeof input !== 'object') return toJsonFence(input)
+  const obj = input as Record<string, unknown>
+
+  if (tool === 'Bash' && 'command' in obj) {
+    return fence('bash', String(obj.command ?? ''))
   }
 
-  // Default: JSON-dump the input
+  if (tool === 'Edit' && 'file_path' in obj) {
+    const diff = buildUnifiedDiff(
+      String(obj.old_string ?? ''),
+      String(obj.new_string ?? ''),
+      String(obj.file_path),
+    )
+    return fence('diff', diff)
+  }
+
+  if (tool === 'Write' && 'file_path' in obj && 'content' in obj) {
+    const lang = detectLangFromPath(String(obj.file_path))
+    return fence(lang, String(obj.content ?? ''))
+  }
+
+  if (tool === 'Read' && 'file_path' in obj) {
+    return fence('', String(obj.file_path))
+  }
+
   return toJsonFence(input)
 }
 
-export function formatToolOutput(name: string | undefined, content: unknown): string {
+export function formatToolOutput(
+  name: string | undefined,
+  content: unknown,
+  input?: unknown,
+): string {
   if (content === undefined || content === null) return ''
   const tool = name ?? ''
 
@@ -39,6 +65,10 @@ export function formatToolOutput(name: string | undefined, content: unknown): st
     if (tool === 'Bash') {
       if (looksLikeJson(content)) return fence('json', content.trim())
       return fence('bash', content)
+    }
+    if (tool === 'Read' && typeof input === 'object' && input && 'file_path' in (input as object)) {
+      const lang = detectLangFromPath(String((input as { file_path: unknown }).file_path))
+      return fence(lang, content)
     }
     if (looksLikeJson(content)) return fence('json', content.trim())
     return fence('', content)
