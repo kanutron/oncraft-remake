@@ -120,11 +120,10 @@ export const CHAT_EVENT_REGISTRY: ChatEventDescriptor[] = [
     tier: 'T2', defaultMode: 'badge',
     sdkType: 'SDKToolProgressMessage', sdkVersionValidated: SDK_VERSION },
 
-  // User replay — treat as a spawn with a distinct kind so the header can mark it.
-  // Reducer detects replay via a flag inside the raw envelope rather than SDK "type" (both use 'user'),
-  // so a dedicated "replay" handler is added in Task 5.5.
-  { type: 'user_replay', kind: 'user-replay', relationship: 'replace',
-    correlationKey: (e: any) => e?.message?.id,
+  // User replay — rendered like a user message but visually marked as historical.
+  // Emitted during session hydration (type:'user' rewritten to type:'user_replay'
+  // by the store so the classifier routes it to ChatUserReplay).
+  { type: 'user_replay', kind: 'user-replay', relationship: 'spawn',
     tier: 'T2', component: 'ChatUserReplay', defaultMode: 'full',
     sdkType: 'SDKUserMessageReplay', sdkVersionValidated: SDK_VERSION },
 

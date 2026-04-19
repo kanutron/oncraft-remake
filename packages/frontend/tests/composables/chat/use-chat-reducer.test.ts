@@ -39,6 +39,15 @@ describe('useChatReducer — spawn / discard / side-channel', () => {
     const { components } = useChatReducer(src)
     expect(components.value.map(c => c.kind)).toEqual(['user', 'system-init'])
   })
+
+  it('spawns a user-replay component for hydrated user messages', () => {
+    const src = ref([
+      makeMessage({ type: 'user_replay', message: { role: 'user', content: 'say hi' } }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value).toHaveLength(1)
+    expect(components.value[0]).toMatchObject({ kind: 'user-replay', defaultMode: 'full' })
+  })
 })
 
 describe('useChatReducer — fan-out', () => {
