@@ -23,6 +23,11 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     costUsd: 0,
     inputTokens: 0,
     outputTokens: 0,
+    preferredModel: null,
+    preferredEffort: null,
+    preferredPermissionMode: null,
+    thinkingMode: null,
+    thinkingBudget: null,
     ...overrides,
   }
 }
