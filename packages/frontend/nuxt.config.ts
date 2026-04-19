@@ -12,4 +12,8 @@ export default defineNuxtConfig({
       wsUrl: 'ws://localhost:3101/ws',
     },
   },
+  imports: {
+    // Scan subdirectories of composables/ for auto-imports
+    dirs: ['composables/**'],
+  },
 })
