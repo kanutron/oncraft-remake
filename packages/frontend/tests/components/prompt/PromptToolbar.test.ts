@@ -123,4 +123,30 @@ describe('PromptToolbar', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-test="thinking-budget"]').exists()).toBe(true)
   })
+
+  it('threads dangerous: true through permission items for slot-based styling', async () => {
+    seedCaps(); seedSession()
+    const wrapper = await mountSuspended(PromptToolbar, { props: { sessionId: 's1' } })
+    const bypass = wrapper.vm.permissionItems.find((i: any) => i.value === 'bypassPermissions')
+    expect(bypass.dangerous).toBe(true)
+    const normal = wrapper.vm.permissionItems.find((i: any) => i.value === 'default')
+    expect(normal.dangerous).toBeFalsy()
+  })
+
+  it('clears the pending debounce timer on unmount', async () => {
+    seedCaps(); seedSession()
+    // Mount while real timers are active so mountSuspended can resolve
+    const wrapper = await mountSuspended(PromptToolbar, { props: { sessionId: 's1' } })
+    // Switch to fake timers AFTER mount so setTimeout inside the component is intercepted
+    vi.useFakeTimers()
+    try {
+      await wrapper.vm.setModel('opus')
+      wrapper.unmount()
+      vi.advanceTimersByTime(2000)
+      // PATCH should NOT have been called because timer was cleared on unmount
+      expect(mockUpdatePreferences).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

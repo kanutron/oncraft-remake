@@ -45,7 +45,7 @@ const permissionItems = computed(() =>
   caps.permissionModes.map(p => ({
     label: p.label,
     value: p.value,
-    class: p.dangerous ? 'text-red-600 dark:text-red-400' : '',
+    dangerous: !!p.dangerous,
   })),
 )
 
@@ -53,6 +53,7 @@ const thinkingItems = computed(() =>
   caps.thinkingModes.map(t => ({ label: t.label, value: t.value })),
 )
 
+// --- persistence ---
 let pending: ReturnType<typeof setTimeout> | null = null
 function debouncedPersist() {
   if (pending) clearTimeout(pending)
@@ -66,6 +67,12 @@ function debouncedPersist() {
     })
   }, 500)
 }
+onBeforeUnmount(() => {
+  if (pending) {
+    clearTimeout(pending)
+    pending = null
+  }
+})
 
 async function setModel(v: string) { model.value = v; debouncedPersist() }
 async function setEffort(v: string) { effort.value = v; debouncedPersist() }
@@ -117,7 +124,11 @@ defineExpose({
       icon="i-lucide-shield"
       class="w-32"
       @update:model-value="setPermissionMode"
-    />
+    >
+      <template #item-label="{ item }">
+        <span :class="item.dangerous ? 'text-red-600 dark:text-red-400' : ''">{{ item.label }}</span>
+      </template>
+    </USelect>
     <USelect
       :model-value="thinkingMode ?? undefined"
       :items="thinkingItems"
