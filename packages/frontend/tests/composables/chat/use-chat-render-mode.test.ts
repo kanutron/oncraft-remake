@@ -42,4 +42,23 @@ describe('useChatRenderMode', () => {
     expect(a.mode.value).toBe('full')
     expect(b.mode.value).toBe('badge')
   })
+
+  it('cycleMode rotates badge -> compact -> full -> badge by default', () => {
+    const api = useChatRenderMode().useRenderMode('cyc', 'badge')
+    expect(api.mode.value).toBe('badge')
+    api.cycleMode()
+    expect(api.mode.value).toBe('compact')
+    api.cycleMode()
+    expect(api.mode.value).toBe('full')
+    api.cycleMode()
+    expect(api.mode.value).toBe('badge')
+  })
+
+  it('cycleMode respects a custom mode list', () => {
+    const api = useChatRenderMode().useRenderMode('cyc2', 'badge')
+    api.cycleMode(['badge', 'compact'])
+    expect(api.mode.value).toBe('compact')
+    api.cycleMode(['badge', 'compact'])
+    expect(api.mode.value).toBe('badge')
+  })
 })

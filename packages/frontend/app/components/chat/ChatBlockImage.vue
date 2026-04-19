@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 
 const src = computed(() => {
   const s = props.data.source
@@ -21,15 +21,15 @@ const src = computed(() => {
 <template>
   <div :data-mode="mode" :class="mode === 'badge' ? 'inline-flex' : 'block my-2'">
     <template v-if="mode === 'badge'">
-      <UBadge variant="subtle" class="cursor-pointer" @click="setMode('compact')">
+      <UBadge variant="subtle" class="cursor-pointer" @click="cycleMode()">
         <UIcon name="i-lucide-image" class="size-3" /> image
       </UBadge>
     </template>
     <template v-else-if="mode === 'compact'">
-      <img v-if="src" :src="src" alt="" class="max-h-20 rounded cursor-pointer" @click="setMode('full')" />
+      <img v-if="src" :src="src" alt="" class="max-h-20 rounded cursor-pointer" @click="cycleMode()" />
     </template>
     <template v-else>
-      <img v-if="src" :src="src" alt="" class="max-h-96 rounded" />
+      <img v-if="src" :src="src" alt="" class="max-h-96 rounded cursor-pointer" @click="cycleMode()" />
     </template>
   </div>
 </template>

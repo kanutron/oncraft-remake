@@ -16,7 +16,7 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 
 const icon = computed(() => toolIcon(props.data.name))
 const label = computed(() => props.data.name ?? 'Tool')
@@ -35,9 +35,6 @@ const outputText = computed(() => {
 
 const isError = computed(() => props.status === 'error')
 const isStreaming = computed(() => props.status === 'streaming' || props.status === 'running')
-
-function toBadge() { setMode('badge') }
-function toCompact() { setMode('compact') }
 </script>
 
 <template>
@@ -52,7 +49,7 @@ function toCompact() { setMode('compact') }
         variant="subtle"
         size="sm"
         class="cursor-pointer"
-        @click="toCompact"
+        @click="cycleMode()"
       >
         <UIcon :name="icon" class="size-3" />
         <span class="text-xs">{{ label }}</span>
@@ -69,17 +66,10 @@ function toCompact() { setMode('compact') }
         :streaming="isStreaming"
         :loading="isStreaming"
         :defaultOpen="false"
-        @update:open="(o: boolean) => setMode(o ? 'full' : 'compact')"
+        @update:open="cycleMode()"
       >
-        <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
+        <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap" @click.stop>{{ outputText }}</pre>
       </UChatTool>
-      <UButton
-        variant="ghost"
-        size="xs"
-        icon="i-lucide-chevrons-left"
-        aria-label="collapse to badge"
-        @click="toBadge"
-      />
     </template>
 
     <template v-else>
@@ -91,9 +81,9 @@ function toCompact() { setMode('compact') }
         :streaming="isStreaming"
         :loading="isStreaming"
         :defaultOpen="true"
-        @update:open="(o: boolean) => setMode(o ? 'full' : 'compact')"
+        @update:open="cycleMode()"
       >
-        <div class="space-y-2">
+        <div class="space-y-2" @click.stop>
           <pre class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ JSON.stringify(data.input, null, 2) }}</pre>
           <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
         </div>

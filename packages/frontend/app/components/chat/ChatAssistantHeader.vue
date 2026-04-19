@@ -8,12 +8,16 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 </script>
 
 <template>
   <div :data-mode="mode" class="block">
-    <div v-if="mode !== 'badge'" class="flex items-center gap-2 text-xs text-neutral-500 mt-3 mb-1">
+    <div
+      v-if="mode !== 'badge'"
+      class="flex items-center gap-2 text-xs text-neutral-500 mt-3 mb-1 cursor-pointer"
+      @click="cycleMode(['badge', 'compact'])"
+    >
       <UIcon name="i-lucide-bot" class="size-4" />
       <span>Assistant</span>
       <span v-if="data.model" class="opacity-70">· {{ data.model }}</span>

@@ -9,25 +9,27 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 const icon = computed(() => props.status === 'error' ? 'i-lucide-shield-x' : 'i-lucide-shield-check')
 </script>
 
 <template>
   <div :data-mode="mode" :class="mode === 'badge' ? 'inline-flex' : 'block my-1'">
     <template v-if="mode === 'badge'">
-      <UBadge color="neutral" variant="subtle" class="cursor-pointer" @click="setMode('compact')">
+      <UBadge color="neutral" variant="subtle" class="cursor-pointer" @click="cycleMode(['badge', 'compact'])">
         <UIcon :name="icon" class="size-3" /> hook
       </UBadge>
     </template>
     <template v-else>
-      <UAlert
-        :color="status === 'error' ? 'error' : 'neutral'"
-        variant="subtle"
-        :icon="icon"
-        :title="`Hook · ${data.hook_event ?? 'unknown'}`"
-        :description="data.decision ?? data.progress ?? ''"
-      />
+      <div class="cursor-pointer" @click="cycleMode(['badge', 'compact'])">
+        <UAlert
+          :color="status === 'error' ? 'error' : 'neutral'"
+          variant="subtle"
+          :icon="icon"
+          :title="`Hook · ${data.hook_event ?? 'unknown'}`"
+          :description="data.decision ?? data.progress ?? ''"
+        />
+      </div>
     </template>
   </div>
 </template>

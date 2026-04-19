@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 
 const thinking = computed(() => props.data.thinking ?? '')
 const isSigned = computed(() => !thinking.value && !!props.data.signature)
@@ -26,7 +26,7 @@ const isSigned = computed(() => !thinking.value && !!props.data.signature)
       </UBadge>
     </template>
     <template v-else-if="mode === 'badge'">
-      <UBadge color="primary" variant="subtle" size="sm" class="cursor-pointer" @click="setMode('compact')">
+      <UBadge color="primary" variant="subtle" size="sm" class="cursor-pointer" @click="cycleMode()">
         <UIcon name="i-lucide-brain" class="size-3" />
         <span class="text-xs">thinking</span>
       </UBadge>
@@ -34,7 +34,7 @@ const isSigned = computed(() => !thinking.value && !!props.data.signature)
     <template v-else>
       <UChatReasoning
         :default-open="mode === 'full'"
-        @update:open="(o: boolean) => setMode(o ? 'full' : 'compact')"
+        @update:open="cycleMode()"
       >
         {{ thinking }}
       </UChatReasoning>

@@ -8,18 +8,18 @@ const props = defineProps<{
 }>()
 
 const { useRenderMode } = useChatRenderMode()
-const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
+const { mode, cycleMode } = useRenderMode(props.componentKey, props.defaultMode)
 </script>
 
 <template>
   <div :data-mode="mode" :class="mode === 'badge' ? 'inline-flex' : 'block my-1'">
     <template v-if="mode === 'badge'">
-      <UBadge variant="subtle" color="neutral" class="cursor-pointer" @click="setMode('compact')">
+      <UBadge variant="subtle" color="neutral" class="cursor-pointer" @click="cycleMode(['badge', 'compact'])">
         <UIcon name="i-lucide-brain-circuit" class="size-3" /> memory
       </UBadge>
     </template>
     <template v-else>
-      <div class="text-xs text-neutral-500 flex items-center gap-1">
+      <div class="text-xs text-neutral-500 flex items-center gap-1 cursor-pointer" @click="cycleMode(['badge', 'compact'])">
         <UIcon name="i-lucide-brain-circuit" class="size-3" />
         memory recall<span v-if="data.path">: <code>{{ data.path }}</code></span>
       </div>
