@@ -46,6 +46,7 @@ export interface BridgeCommand {
 		| "interrupt"
 		| "stop"
 		| "loadHistory"
+		| "loadSubagents"
 		| "listSessions";
 	[key: string]: unknown;
 }

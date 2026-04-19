@@ -78,6 +78,18 @@ export function registerSessionRoutes(
 		}
 	});
 
+	app.get("/sessions/:id/subagents", async (request, reply) => {
+		const { id } = request.params as { id: string };
+		try {
+			await sessionService.loadSubagents(id);
+			return { sessionId: id, status: "loading" };
+		} catch (err) {
+			return reply
+				.status(400)
+				.send({ error: (err as Error).message, code: "SUBAGENTS_FAILED" });
+		}
+	});
+
 	app.delete("/sessions/:id", async (request, reply) => {
 		const { id } = request.params as { id: string };
 		const { force } = request.query as { force?: string };

@@ -257,6 +257,24 @@ export class SessionService {
 		});
 	}
 
+	async loadSubagents(sessionId: string): Promise<void> {
+		const session = this.store.getSession(sessionId);
+		if (!session) throw new Error(`Session not found: ${sessionId}`);
+		if (!session.claudeSessionId)
+			throw new Error("No Claude session to load subagents for");
+		if (!this.processManager.isAlive(sessionId)) {
+			const repo = this.store.getRepository(session.repositoryId);
+			if (!repo) throw new Error("Repository not found");
+			const cwd = session.worktreePath ?? repo.path;
+			await this.processManager.spawn(sessionId, cwd);
+			await this.processManager.waitForReady(sessionId);
+		}
+		this.processManager.send(sessionId, {
+			cmd: "loadSubagents",
+			sessionId: session.claudeSessionId,
+		});
+	}
+
 	async destroy(
 		sessionId: string,
 		opts: { force?: boolean } = {},

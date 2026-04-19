@@ -38,12 +38,18 @@ interface LoadHistoryCommand {
 	sessionId: string;
 }
 
+interface LoadSubagentsCommand {
+	cmd: "loadSubagents";
+	sessionId: string;
+}
+
 type BridgeCommand =
 	| StartCommand
 	| ReplyCommand
 	| InterruptCommand
 	| StopCommand
-	| LoadHistoryCommand;
+	| LoadHistoryCommand
+	| LoadSubagentsCommand;
 
 // --- State ---
 
@@ -211,6 +217,63 @@ async function handleLoadHistory(cmd: LoadHistoryCommand): Promise<void> {
 	}
 }
 
+async function handleLoadSubagents(cmd: LoadSubagentsCommand): Promise<void> {
+	try {
+		const sdk = await import("@anthropic-ai/claude-agent-sdk");
+		const { readFile } = await import("node:fs/promises");
+		const { homedir } = await import("node:os");
+		const { join } = await import("node:path");
+		const { existsSync } = await import("node:fs");
+
+		const agentIds = await sdk.listSubagents(cmd.sessionId);
+		const projectsDir = join(homedir(), ".claude", "projects");
+		const { readdir } = await import("node:fs/promises");
+		const projects = await readdir(projectsDir);
+		let subagentsDir: string | null = null;
+		for (const project of projects) {
+			const candidate = join(projectsDir, project, cmd.sessionId, "subagents");
+			if (existsSync(candidate)) {
+				subagentsDir = candidate;
+				break;
+			}
+		}
+
+		const entries: Array<{
+			agentId: string;
+			agentType?: string;
+			description?: string;
+			messages: unknown[];
+		}> = [];
+		for (const agentId of agentIds) {
+			let agentType: string | undefined;
+			let description: string | undefined;
+			if (subagentsDir) {
+				try {
+					const metaPath = join(subagentsDir, `agent-${agentId}.meta.json`);
+					const raw = await readFile(metaPath, "utf8");
+					const meta = JSON.parse(raw) as {
+						agentType?: string;
+						description?: string;
+					};
+					agentType = meta.agentType;
+					description = meta.description;
+				} catch {
+					/* missing or unreadable meta.json — skip, still correlate by id */
+				}
+			}
+			const messages = await sdk.getSubagentMessages(cmd.sessionId, agentId);
+			entries.push({ agentId, agentType, description, messages });
+		}
+
+		emit({ type: "bridge:subagents", sessionId: cmd.sessionId, entries });
+	} catch (err) {
+		emit({
+			type: "bridge:error",
+			message: `Failed to load subagents: ${err}`,
+		});
+	}
+}
+
 // --- Main Loop ---
 
 emit({ type: "bridge:ready" });
@@ -233,6 +296,9 @@ rl.on("line", async (line) => {
 				break;
 			case "loadHistory":
 				await handleLoadHistory(cmd);
+				break;
+			case "loadSubagents":
+				await handleLoadSubagents(cmd);
 				break;
 			case "stop":
 				rl.close();
