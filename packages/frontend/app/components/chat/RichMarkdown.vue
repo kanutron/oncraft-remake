@@ -67,7 +67,7 @@ function decodeHtml(s: string): string {
 </script>
 
 <template>
-  <div class="prose prose-sm dark:prose-invert max-w-none break-words">
+  <div class="prose prose-sm dark:prose-invert max-w-none wrap-break-word">
     <template v-for="(seg, i) in segments" :key="i">
       <div v-if="seg.kind === 'html'" v-html="seg.html" />
       <MermaidBlock v-else-if="seg.kind === 'mermaid'" :source="seg.source" />
