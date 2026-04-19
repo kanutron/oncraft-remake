@@ -64,6 +64,63 @@ export const CHAT_EVENT_REGISTRY: ChatEventDescriptor[] = [
   { type: 'bridge:stderr', kind: 'generic-system', relationship: 'discard',
     tier: 'BR', defaultMode: 'badge',
     sdkType: 'BridgeStderr', sdkVersionValidated: SDK_VERSION },
+
+  // ── T2 ────────────────────────────────────────────────────────
+  { type: 'system', subtype: 'api_retry', kind: 'api-retry', relationship: 'spawn',
+    tier: 'T2', component: 'ChatAPIRetry', defaultMode: 'compact',
+    sdkType: 'SDKAPIRetryMessage', sdkVersionValidated: SDK_VERSION },
+
+  { type: 'system', subtype: 'local_command_output', kind: 'local-command-output', relationship: 'spawn',
+    tier: 'T2', component: 'ChatLocalCommandOutput', defaultMode: 'compact',
+    sdkType: 'SDKLocalCommandOutputMessage', sdkVersionValidated: SDK_VERSION },
+
+  { type: 'system', subtype: 'notification', kind: 'notification', relationship: 'spawn',
+    tier: 'T2', component: 'ChatNotification', defaultMode: 'compact',
+    sdkType: 'SDKNotificationMessage', sdkVersionValidated: SDK_VERSION },
+
+  { type: 'tool_use_summary', kind: 'tool-use-summary', relationship: 'spawn',
+    tier: 'T2', component: 'ChatToolUseSummary', defaultMode: 'compact',
+    sdkType: 'SDKToolUseSummaryMessage', sdkVersionValidated: SDK_VERSION },
+
+  // Hook lifecycle — all three subtypes collapse into ChatHookEntry via mutate by hook_callback_id.
+  { type: 'system', subtype: 'hook_started', kind: 'hook-entry', relationship: 'spawn',
+    correlationKey: (e: any) => e?.hook_callback_id,
+    tier: 'T2', component: 'ChatHookEntry', defaultMode: 'compact',
+    sdkType: 'SDKHookStartedMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'system', subtype: 'hook_progress', kind: 'hook-entry', relationship: 'mutate',
+    correlationKey: (e: any) => e?.hook_callback_id,
+    tier: 'T2', defaultMode: 'compact',
+    sdkType: 'SDKHookProgressMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'system', subtype: 'hook_response', kind: 'hook-entry', relationship: 'mutate',
+    correlationKey: (e: any) => e?.hook_callback_id,
+    tier: 'T2', defaultMode: 'compact',
+    sdkType: 'SDKHookResponseMessage', sdkVersionValidated: SDK_VERSION },
+
+  // Task lifecycle — four subtypes collapse into ChatTaskEntry via mutate by task_id.
+  { type: 'task_started', kind: 'task-entry', relationship: 'spawn',
+    correlationKey: (e: any) => e?.task_id,
+    tier: 'T2', component: 'ChatTaskEntry', defaultMode: 'compact',
+    sdkType: 'SDKTaskStartedMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'task_updated', kind: 'task-entry', relationship: 'mutate',
+    correlationKey: (e: any) => e?.task_id,
+    tier: 'T2', defaultMode: 'compact',
+    sdkType: 'SDKTaskUpdatedMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'task_progress', kind: 'task-entry', relationship: 'mutate',
+    correlationKey: (e: any) => e?.task_id,
+    tier: 'T2', defaultMode: 'compact',
+    sdkType: 'SDKTaskProgressMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'task_notification', kind: 'task-entry', relationship: 'mutate',
+    correlationKey: (e: any) => e?.task_id,
+    tier: 'T2', defaultMode: 'compact',
+    sdkType: 'SDKTaskNotificationMessage', sdkVersionValidated: SDK_VERSION },
+
+  // User replay — treat as a spawn with a distinct kind so the header can mark it.
+  // Reducer detects replay via a flag inside the raw envelope rather than SDK "type" (both use 'user'),
+  // so a dedicated "replay" handler is added in Task 5.5.
+  { type: 'user_replay', kind: 'user-replay', relationship: 'replace',
+    correlationKey: (e: any) => e?.message?.id,
+    tier: 'T2', component: 'ChatUserReplay', defaultMode: 'full',
+    sdkType: 'SDKUserMessageReplay', sdkVersionValidated: SDK_VERSION },
 ]
 
 /** Find the descriptor matching a raw event, or null if unknown. */
