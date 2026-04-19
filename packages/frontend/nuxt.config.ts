@@ -1,4 +1,5 @@
 export default defineNuxtConfig({
+  compatibilityDate: '2026-04-19',
   modules: ['@nuxt/ui', '@pinia/nuxt'],
   css: ['~/assets/css/main.css'],
   ssr: false,

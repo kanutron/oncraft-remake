@@ -23,6 +23,7 @@ const app = Fastify({ logger: true });
 // Plugins
 await app.register(fastifyCors, {
 	origin: process.env.CORS_ORIGIN || "http://localhost:3100",
+	methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 });
 await app.register(fastifyWebsocket);
 
