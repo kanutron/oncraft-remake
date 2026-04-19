@@ -204,6 +204,15 @@ export class SessionService {
 			effort: opts.effort,
 			permissionMode: opts.permissionMode,
 		});
+
+		this.eventBus.emit(cwd, "session:message", {
+			sessionId,
+			type: "user",
+			message: {
+				role: "user",
+				content: [{ type: "text", text: message }],
+			},
+		});
 	}
 
 	reply(

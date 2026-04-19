@@ -286,6 +286,97 @@ describe('useSessionStore', () => {
     })
   })
 
+  /* ── hydrate ───────────────────────────────────────────────────── */
+
+  describe('hydrate()', () => {
+    it('skips when session is unknown', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      await store.hydrate('unknown')
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when claudeSessionId is null', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set('sess-1', makeSession({ id: 'sess-1', claudeSessionId: null }))
+      await store.hydrate('sess-1')
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when session state is active', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set('sess-1', makeSession({ id: 'sess-1', claudeSessionId: 'claude-1', state: 'active' as SessionState }))
+      await store.hydrate('sess-1')
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('skips when messages already exist', async () => {
+      const fetchMock = vi.fn()
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set('sess-1', makeSession({ id: 'sess-1', claudeSessionId: 'claude-1' }))
+      store.appendMessage('sess-1', { type: 'assistant' })
+      await store.hydrate('sess-1')
+
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('fires GET /sessions/:id/history once, idempotent on second call', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ sessionId: 'sess-1', status: 'loading' })
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set('sess-1', makeSession({ id: 'sess-1', claudeSessionId: 'claude-1' }))
+
+      await store.hydrate('sess-1')
+      await store.hydrate('sess-1')
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith('http://test:3101/sessions/sess-1/history')
+      expect(store.hydratedSessions.has('sess-1')).toBe(true)
+    })
+
+    it('clears hydration flag on fetch failure so retry is possible', async () => {
+      const fetchMock = vi.fn().mockRejectedValueOnce(new Error('boom'))
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set('sess-1', makeSession({ id: 'sess-1', claudeSessionId: 'claude-1' }))
+      await store.hydrate('sess-1')
+
+      expect(store.hydratedSessions.has('sess-1')).toBe(false)
+    })
+  })
+
+  /* ── appendHistoryMessages ─────────────────────────────────────── */
+
+  describe('appendHistoryMessages()', () => {
+    it('rewrites type:user to type:user_replay and passes others through', () => {
+      const store = useSessionStore()
+      store.appendHistoryMessages('sess-1', [
+        { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'hi' }] } },
+        { type: 'assistant', message: { role: 'assistant', content: [] } },
+      ])
+
+      const stored = store.messagesForSession('sess-1')
+      expect(stored).toHaveLength(2)
+      expect(stored[0]!.raw.type).toBe('user_replay')
+      expect(stored[1]!.raw.type).toBe('assistant')
+    })
+  })
+
   /* ── send ──────────────────────────────────────────────────────── */
 
   describe('send()', () => {

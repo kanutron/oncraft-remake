@@ -5,6 +5,7 @@ export const useSessionStore = defineStore('session', () => {
   const sessions = ref<Map<string, Session>>(new Map())
   const messages = ref<Map<string, ChatMessage[]>>(new Map())
   const activeSessionByRepository = ref<Map<string, string>>(new Map())
+  const hydratedSessions = ref<Set<string>>(new Set())
 
   function activeSessionId(repositoryId: string): string | null {
     return activeSessionByRepository.value.get(repositoryId) ?? null
@@ -57,6 +58,30 @@ export const useSessionStore = defineStore('session', () => {
 
   function setActive(repositoryId: string, sessionId: string) {
     activeSessionByRepository.value.set(repositoryId, sessionId)
+    void hydrate(sessionId)
+  }
+
+  async function hydrate(sessionId: string) {
+    if (hydratedSessions.value.has(sessionId)) return
+    const session = sessions.value.get(sessionId)
+    if (!session?.claudeSessionId) return
+    if (session.state === 'active' || session.state === 'starting') return
+    if ((messages.value.get(sessionId)?.length ?? 0) > 0) return
+
+    hydratedSessions.value.add(sessionId)
+    try {
+      await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/history`)
+    }
+    catch {
+      hydratedSessions.value.delete(sessionId)
+    }
+  }
+
+  function appendHistoryMessages(sessionId: string, rawMessages: Record<string, unknown>[]) {
+    for (const raw of rawMessages) {
+      const tagged = raw.type === 'user' ? { ...raw, type: 'user_replay' } : raw
+      appendMessage(sessionId, tagged)
+    }
   }
 
   function appendMessage(sessionId: string, raw: Record<string, unknown>) {
@@ -115,9 +140,9 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   return {
-    sessions, messages, activeSessionByRepository,
+    sessions, messages, activeSessionByRepository, hydratedSessions,
     activeSessionId, sessionsForRepository, messagesForSession,
-    fetchForRepository, create, send, reply, interrupt, setActive,
-    appendMessage, updateState, destroy, removeSession,
+    fetchForRepository, create, send, reply, interrupt, setActive, hydrate,
+    appendMessage, appendHistoryMessages, updateState, destroy, removeSession,
   }
 })

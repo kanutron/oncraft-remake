@@ -38,7 +38,15 @@ export function useWebSocket() {
 
     switch (msg.event) {
       case 'session:message':
-        if (sessionId) sessionStore.appendMessage(sessionId, msg)
+        if (sessionId) {
+          if (msg.type === 'bridge:history') {
+            const list = (msg.messages ?? []) as Record<string, unknown>[]
+            sessionStore.appendHistoryMessages(sessionId, list)
+          }
+          else {
+            sessionStore.appendMessage(sessionId, msg)
+          }
+        }
         break
       case 'session:state-changed':
         if (sessionId) {
