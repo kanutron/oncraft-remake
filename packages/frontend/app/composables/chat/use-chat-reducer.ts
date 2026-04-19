@@ -78,7 +78,10 @@ function derive(messages: ChatMessage[]): Derived {
     if (relationship === 'side-channel') { side.push({ kind, data: raw }); continue }
 
     if (relationship === 'spawn') {
-      out.push({ componentKey: msg.id, kind, data: raw, defaultMode: descriptor.defaultMode })
+      const needsCorr = kind === 'hook-entry' || kind === 'task-entry'
+      const corr = descriptor.correlationKey?.(raw)
+      const componentKey = needsCorr && corr ? corr : msg.id
+      out.push({ componentKey, kind, data: raw, defaultMode: descriptor.defaultMode })
       continue
     }
 
@@ -131,6 +134,30 @@ function derive(messages: ChatMessage[]): Derived {
   for (let i = 0; i < out.length; i++) if (out[i].kind === 'user') lastUserIdx = i
   if (lastUserIdx !== -1 && lastUserIdx < out.length - 1) out[lastUserIdx].sticky = true
   for (const c of out) if (c.kind === 'tool-confirmation') c.sticky = true
+
+  // Pass 5: mutate by correlation key (hooks, tasks).
+  const byKey = new Map<string, ChatStreamComponent>()
+  for (const c of out) if (c.kind === 'hook-entry' || c.kind === 'task-entry') byKey.set(c.componentKey, c)
+
+  for (const msg of messages) {
+    const raw = (msg.raw?.data ?? msg.raw) as any
+    const { relationship, descriptor, kind: evtKind, correlationKey } = classifyEvent(raw)
+    if (relationship !== 'mutate' || !descriptor) continue
+    if (evtKind !== 'hook-entry' && evtKind !== 'task-entry') continue
+
+    const key = correlationKey
+    if (!key) continue
+    const parent = byKey.get(key)
+    if (!parent) continue
+
+    parent.data = { ...(parent.data as object), ...raw }
+    if (descriptor.subtype === 'hook_response') {
+      parent.status = raw.decision === 'deny' ? 'error' : 'success'
+    }
+    else if (descriptor.subtype === 'hook_progress' || descriptor.type === 'task_progress') {
+      parent.status ??= 'running'
+    }
+  }
 
   return { components: out, sideChannel: side }
 }

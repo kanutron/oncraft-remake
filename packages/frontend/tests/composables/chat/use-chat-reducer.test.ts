@@ -175,3 +175,18 @@ describe('useChatReducer — streaming and sticky', () => {
     expect(components.value[0].sticky).toBe(true)
   })
 })
+
+describe('useChatReducer — hook lifecycle (mutate)', () => {
+  it('collapses hook_started + hook_progress + hook_response into a single component', () => {
+    const src = ref([
+      makeMessage({ type: 'system', subtype: 'hook_started', hook_callback_id: 'h1', hook_event: 'PostToolUse' }),
+      makeMessage({ type: 'system', subtype: 'hook_progress', hook_callback_id: 'h1', progress: 'running' }),
+      makeMessage({ type: 'system', subtype: 'hook_response', hook_callback_id: 'h1', decision: 'allow' }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value.filter(c => c.kind === 'hook-entry')).toHaveLength(1)
+    const entry = components.value.find(c => c.kind === 'hook-entry')!
+    expect((entry.data as any).decision).toBe('allow')
+    expect(entry.status).toBe('success')
+  })
+})

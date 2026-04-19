@@ -15,6 +15,7 @@ import ChatAPIRetry from '~/components/chat/ChatAPIRetry.vue'
 import ChatLocalCommandOutput from '~/components/chat/ChatLocalCommandOutput.vue'
 import ChatNotification from '~/components/chat/ChatNotification.vue'
 import ChatToolUseSummary from '~/components/chat/ChatToolUseSummary.vue'
+import ChatHookEntry from '~/components/chat/ChatHookEntry.vue'
 
 const MAP: Partial<Record<ChatEventKind, Component>> = {
   'assistant-header': ChatAssistantHeader,
@@ -31,6 +32,7 @@ const MAP: Partial<Record<ChatEventKind, Component>> = {
   'local-command-output': ChatLocalCommandOutput,
   'notification': ChatNotification,
   'tool-use-summary': ChatToolUseSummary,
+  'hook-entry': ChatHookEntry,
 }
 
 export function resolveChatComponent(kind: ChatEventKind): Component | null {
