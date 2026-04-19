@@ -91,6 +91,7 @@ function derive(messages: ChatMessage[]): Derived {
 
     if (relationship === 'discard' || !descriptor) continue
     if (userMessagesWithOnlyToolResults.has(msg.id)) continue // folded into tool_use components
+    if (raw?.parent_tool_use_id) continue // subagent turn; rendered nested, not at top level
 
     if (relationship === 'side-channel') { side.push({ kind, data: raw }); continue }
 
@@ -148,10 +149,10 @@ function derive(messages: ChatMessage[]): Derived {
     }
   }
 
-  // Pass 4: sticky eligibility.
-  let lastUserIdx = -1
-  for (let i = 0; i < out.length; i++) if (out[i].kind === 'user') lastUserIdx = i
-  if (lastUserIdx !== -1 && lastUserIdx < out.length - 1) out[lastUserIdx].sticky = true
+  // Pass 4: sticky eligibility. Tool confirmations stay sticky inline (they need
+  // persistent visibility for user approval). User messages are NOT marked sticky
+  // here — ChatHistory mounts an IntersectionObserver and renders a floating copy
+  // only when the inline user message leaves the viewport.
   for (const c of out) if (c.kind === 'tool-confirmation') c.sticky = true
 
   // Pass 5: mutate by correlation key (hooks, tasks).

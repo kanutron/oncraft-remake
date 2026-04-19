@@ -217,26 +217,40 @@ describe('useChatReducer — streaming and sticky', () => {
     expect(txt.status).toBe('streaming')
   })
 
-  it('marks the latest user message as sticky while any non-user components follow it', () => {
+  it('does not mark user messages as sticky — ChatHistory promotes them via IntersectionObserver instead', () => {
     const src = ref([
       makeMessage({ type: 'user', content: 'go' }),
       makeMessage({ type: 'assistant', message: { id: 'm', content: [{ type: 'text', text: 'yes' }] } }),
     ])
     const { components } = useChatReducer(src)
     const user = components.value.find(c => c.kind === 'user')!
-    expect(user.sticky).toBe(true)
-  })
-
-  it('does not mark the user message as sticky if it is the last component', () => {
-    const src = ref([makeMessage({ type: 'user', content: 'hi' })])
-    const { components } = useChatReducer(src)
-    expect(components.value[0].sticky).toBeUndefined()
+    expect(user.sticky).toBeUndefined()
   })
 
   it('marks active tool-confirmation as sticky', () => {
     const src = ref([makeMessage({ event: 'session:tool-confirmation', type: 'tool_confirmation', tool: 'Bash' })])
     const { components } = useChatReducer(src)
     expect(components.value[0].sticky).toBe(true)
+  })
+
+  it('filters subagent turns (parent_tool_use_id set) from the top-level stream', () => {
+    const src = ref([
+      makeMessage({ type: 'user', content: 'go' }),
+      makeMessage({
+        type: 'assistant',
+        message: { id: 'parent', content: [{ type: 'tool_use', id: 'tu_agent', name: 'Agent', input: {} }] },
+      }),
+      // Subagent turn surfaced inline in live stream — must not appear at top level
+      makeMessage({
+        type: 'assistant',
+        parent_tool_use_id: 'tu_agent',
+        message: { id: 'sub_1', content: [{ type: 'text', text: 'subagent output' }] },
+      }),
+    ])
+    const { components } = useChatReducer(src)
+    const kinds = components.value.map(c => c.kind)
+    expect(kinds).toContain('block-tool-use')
+    expect(kinds).not.toContain('block-text')
   })
 })
 

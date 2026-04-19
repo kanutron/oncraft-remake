@@ -25,7 +25,7 @@ describe('ChatBlockThinking', () => {
       },
     })
     expect(w.attributes('data-mode')).toBe('badge')
-    expect(w.text()).toContain('thinking (signed)')
+    expect(w.text()).toContain('Thinking')
     expect(w.findComponent({ name: 'UChatReasoning' }).exists()).toBe(false)
   })
 })
