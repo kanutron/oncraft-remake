@@ -46,3 +46,50 @@ describe('ChatBlockToolUse', () => {
     expect(tool.props('streaming')).toBe(true)
   })
 })
+
+import { ensureMarkdown } from '~/composables/chat/markdown/use-markdown'
+
+describe('ChatBlockToolUse — Bash markdown rendering', () => {
+  it('renders the bash command as a highlighted code block in full mode', async () => {
+    await ensureMarkdown()
+    const wrapper = await mountSuspended(ChatBlockToolUse, {
+      props: {
+        componentKey: 'bash-1',
+        defaultMode: 'full',
+        status: 'success',
+        data: {
+          type: 'tool_use',
+          id: 't1',
+          name: 'Bash',
+          input: { command: 'ls -la' },
+          tool_result: { content: 'total 24', is_error: false },
+        },
+      },
+    })
+    const html = wrapper.html()
+    // Shiki splits whitespace across spans — match on individual tokens and the language marker
+    expect(html).toMatch(/language-bash|class="shiki/)
+    expect(html).toContain('ls')
+    expect(html).toContain('total')
+    expect(html).toContain('24')
+  })
+
+  it('renders JSON bash output with json fence', async () => {
+    await ensureMarkdown()
+    const wrapper = await mountSuspended(ChatBlockToolUse, {
+      props: {
+        componentKey: 'bash-2',
+        defaultMode: 'full',
+        status: 'success',
+        data: {
+          type: 'tool_use',
+          id: 't2',
+          name: 'Bash',
+          input: { command: 'cat config.json' },
+          tool_result: { content: '{"ok": true}', is_error: false },
+        },
+      },
+    })
+    expect(wrapper.html()).toMatch(/language-json|shiki|style=/i)
+  })
+})

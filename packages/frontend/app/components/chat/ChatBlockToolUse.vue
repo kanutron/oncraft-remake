@@ -4,6 +4,8 @@ import type { RenderMode } from '~/types/chat'
 import type { SubagentEntry } from '~/stores/session.store'
 import { toolIcon } from '~/composables/chat/tool-icon'
 import ChatSubagentTranscript from '~/components/chat/ChatSubagentTranscript.vue'
+import RichMarkdown from '~/components/chat/RichMarkdown.vue'
+import { formatToolInput, formatToolOutput } from '~/composables/chat/markdown/tool-formatters'
 
 const props = defineProps<{
   componentKey: string
@@ -31,11 +33,10 @@ const inputSummary = computed(() => {
   for (const v of Object.values(input)) if (typeof v === 'string' && v) return v
   return JSON.stringify(input)
 })
-const outputText = computed(() => {
-  const c = props.data.tool_result?.content
-  if (typeof c === 'string') return c
-  return JSON.stringify(c, null, 2)
-})
+const inputMd = computed(() => formatToolInput(props.data.name, props.data.input))
+const outputMd = computed(() =>
+  formatToolOutput(props.data.name, props.data.tool_result?.content, props.data.input),
+)
 
 const isError = computed(() => props.status === 'error')
 const isStreaming = computed(() => props.status === 'streaming' || props.status === 'running')
@@ -129,7 +130,7 @@ const hasSubagentContent = computed(() =>
         @update:open="cycleMode()"
       >
         <div class="space-y-2" @click.stop>
-          <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
+          <RichMarkdown v-if="data.tool_result && outputMd" :source="outputMd" />
           <ChatSubagentTranscript
             v-if="hasSubagentContent && subagentMeta && sessionId"
             :agent-id="subagentMeta.agentId"
@@ -154,8 +155,8 @@ const hasSubagentContent = computed(() =>
         @update:open="cycleMode()"
       >
         <div class="space-y-2" @click.stop>
-          <pre class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ JSON.stringify(data.input, null, 2) }}</pre>
-          <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
+          <RichMarkdown v-if="inputMd" :source="inputMd" />
+          <RichMarkdown v-if="data.tool_result && outputMd" :source="outputMd" />
           <ChatSubagentTranscript
             v-if="hasSubagentContent && subagentMeta && sessionId"
             :agent-id="subagentMeta.agentId"

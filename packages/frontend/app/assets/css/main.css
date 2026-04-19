@@ -1,2 +1,9 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@plugin "@tailwindcss/typography";
+
+.prose .stack-frame {
+  color: var(--color-red-500);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.85em;
+}
