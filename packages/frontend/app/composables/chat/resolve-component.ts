@@ -18,6 +18,9 @@ import ChatToolUseSummary from '~/components/chat/ChatToolUseSummary.vue'
 import ChatHookEntry from '~/components/chat/ChatHookEntry.vue'
 import ChatTaskEntry from '~/components/chat/ChatTaskEntry.vue'
 import ChatUserReplay from '~/components/chat/ChatUserReplay.vue'
+import ChatMemoryRecall from '~/components/chat/ChatMemoryRecall.vue'
+import ChatElicitationComplete from '~/components/chat/ChatElicitationComplete.vue'
+import ChatGenericSystemEvent from '~/components/chat/ChatGenericSystemEvent.vue'
 
 const MAP: Partial<Record<ChatEventKind, Component>> = {
   'assistant-header': ChatAssistantHeader,
@@ -37,6 +40,9 @@ const MAP: Partial<Record<ChatEventKind, Component>> = {
   'hook-entry': ChatHookEntry,
   'task-entry': ChatTaskEntry,
   'user-replay': ChatUserReplay,
+  'memory-recall': ChatMemoryRecall,
+  'elicitation-complete': ChatElicitationComplete,
+  'generic-system': ChatGenericSystemEvent,
 }
 
 export function resolveChatComponent(kind: ChatEventKind): Component | null {
