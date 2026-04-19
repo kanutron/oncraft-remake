@@ -57,6 +57,9 @@ importers:
         specifier: ^4.2.2
         version: 4.2.2
     devDependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.2.114
+        version: 0.2.114(zod@4.3.6)
       '@iconify-json/lucide':
         specifier: ^1.2.102
         version: 1.2.102
