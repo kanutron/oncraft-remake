@@ -15,6 +15,7 @@
     "@vueuse/core": "^14.2.1",
     "dompurify": "^3.4.0",
     "markdown-it": "^14.1.1",
+    "mermaid": "^11.14.0",
     "nuxt": "^4.4.2",
     "pinia": "^3.0.4",
     "shiki": "^4.0.2",

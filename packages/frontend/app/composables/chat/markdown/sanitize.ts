@@ -17,6 +17,7 @@ const ALLOWED_ATTR = [
   'open',
   'colspan', 'rowspan',
   'data-lang', 'data-line', 'data-file',
+  'data-mermaid-src',
 ]
 
 const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto):|[^:]*(?:[/?#]|$))/i

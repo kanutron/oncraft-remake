@@ -21,6 +21,19 @@ async function initMarkdown(): Promise<MarkdownIt> {
     langs: [...SHIKI_LANGS],
   })
   md.use(shikiPlugin)
+  const defaultFence = md.renderer.rules.fence!
+  md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+    const token = tokens[idx]!
+    if (token.info.trim() === 'mermaid') {
+      const escaped = token.content
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+      return `<div class="mermaid-src" data-mermaid-src="${escaped}"></div>`
+    }
+    return defaultFence(tokens, idx, options, env, self)
+  }
   mdInstance = md
   return md
 }
