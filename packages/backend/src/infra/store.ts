@@ -44,9 +44,28 @@ export class Store {
 				costUsd REAL NOT NULL DEFAULT 0,
 				inputTokens INTEGER NOT NULL DEFAULT 0,
 				outputTokens INTEGER NOT NULL DEFAULT 0,
+				preferredModel TEXT,
+				preferredEffort TEXT,
+				preferredPermissionMode TEXT,
+				thinkingMode TEXT,
+				thinkingBudget INTEGER,
 				FOREIGN KEY (repositoryId) REFERENCES repositories(id)
 			)
 		`);
+		const columns = this.db
+			.prepare(`PRAGMA table_info(sessions)`)
+			.all() as Array<{ name: string }>;
+		const have = new Set(columns.map((c) => c.name));
+		const add = (col: string, def: string) => {
+			if (!have.has(col)) {
+				this.db.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${def}`);
+			}
+		};
+		add("preferredModel", "TEXT");
+		add("preferredEffort", "TEXT");
+		add("preferredPermissionMode", "TEXT");
+		add("thinkingMode", "TEXT");
+		add("thinkingBudget", "INTEGER");
 	}
 
 	// --- Repositories ---
@@ -87,8 +106,9 @@ export class Store {
 		this.db
 			.prepare(
 				`INSERT INTO sessions (id, repositoryId, claudeSessionId, name, sourceBranch, workBranch, targetBranch,
-				worktreePath, state, createdAt, lastActivityAt, costUsd, inputTokens, outputTokens)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				worktreePath, state, createdAt, lastActivityAt, costUsd, inputTokens, outputTokens,
+				preferredModel, preferredEffort, preferredPermissionMode, thinkingMode, thinkingBudget)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			)
 			.run(
 				s.id,
@@ -105,6 +125,11 @@ export class Store {
 				s.costUsd,
 				s.inputTokens,
 				s.outputTokens,
+				s.preferredModel,
+				s.preferredEffort,
+				s.preferredPermissionMode,
+				s.thinkingMode,
+				s.thinkingBudget,
 			);
 	}
 
@@ -158,6 +183,38 @@ export class Store {
 		if (fields.targetBranch !== undefined) {
 			sets.push("targetBranch = ?");
 			values.push(fields.targetBranch);
+		}
+		if (sets.length === 0) return;
+		values.push(id);
+		this.db
+			.prepare(`UPDATE sessions SET ${sets.join(", ")} WHERE id = ?`)
+			.run(...values);
+	}
+
+	updateSessionPreferences(
+		id: string,
+		prefs: {
+			preferredModel?: string | null;
+			preferredEffort?: string | null;
+			preferredPermissionMode?: string | null;
+			thinkingMode?: "off" | "adaptive" | "fixed" | null;
+			thinkingBudget?: number | null;
+		},
+	): void {
+		const sets: string[] = [];
+		const values: unknown[] = [];
+		const keys = [
+			"preferredModel",
+			"preferredEffort",
+			"preferredPermissionMode",
+			"thinkingMode",
+			"thinkingBudget",
+		] as const;
+		for (const k of keys) {
+			if (prefs[k] !== undefined) {
+				sets.push(`${k} = ?`);
+				values.push(prefs[k]);
+			}
 		}
 		if (sets.length === 0) return;
 		values.push(id);
