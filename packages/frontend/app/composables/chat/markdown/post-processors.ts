@@ -46,3 +46,12 @@ export function linkifyFilePaths(html: string): string {
   })
   return root.innerHTML
 }
+
+const JS_FRAME_RE = /^(\s*at\s+[^\n]*\([\w./-]+\.\w+:\d+:\d+\))$/gm
+const PY_FRAME_RE = /^(\s*File\s+"[^"]+",\s*line\s+\d+(?:,\s*in\s+[^\n]+)?)$/gm
+
+export function formatStackTraces(html: string): string {
+  if (!html) return html
+  return html.replace(JS_FRAME_RE, '<span class="stack-frame">$1</span>')
+             .replace(PY_FRAME_RE, '<span class="stack-frame">$1</span>')
+}

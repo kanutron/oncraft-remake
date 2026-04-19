@@ -28,3 +28,26 @@ describe('linkifyFilePaths', () => {
     expect(out).toContain('href="src/x.ts#L10"')
   })
 })
+
+import { formatStackTraces } from '~/composables/chat/markdown/post-processors'
+
+describe('formatStackTraces', () => {
+  it('wraps JS "at fn (file.ts:10:5)" frames', () => {
+    const input = '<pre><code>Error: boom\n    at foo (src/a.ts:10:5)\n    at bar (src/b.ts:3:1)</code></pre>'
+    const out = formatStackTraces(input)
+    expect(out).toContain('class="stack-frame"')
+    expect(out).toContain('src/a.ts')
+  })
+
+  it('wraps Python "File ..., line N" frames', () => {
+    const input = '<pre><code>Traceback (most recent call last):\n  File "app.py", line 12, in <module>\n    x()</code></pre>'
+    const out = formatStackTraces(input)
+    expect(out).toContain('class="stack-frame"')
+    expect(out).toContain('app.py')
+  })
+
+  it('leaves unrelated text untouched', () => {
+    const input = '<p>just a sentence</p>'
+    expect(formatStackTraces(input)).toBe(input)
+  })
+})
