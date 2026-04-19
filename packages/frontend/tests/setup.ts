@@ -3,7 +3,7 @@
  * without the Nuxt build pipeline.
  */
 import { vi } from 'vitest'
-import { ref, computed, reactive, toRaw } from 'vue'
+import { ref, computed, reactive, toRaw, watch, watchEffect, nextTick } from 'vue'
 import { defineStore, setActivePinia, createPinia } from 'pinia'
 
 /* ── Nuxt auto-imports exposed as globals ─────────────────────────── */
@@ -13,6 +13,9 @@ import { defineStore, setActivePinia, createPinia } from 'pinia'
 ;(globalThis as any).computed = computed
 ;(globalThis as any).reactive = reactive
 ;(globalThis as any).toRaw = toRaw
+;(globalThis as any).watch = watch
+;(globalThis as any).watchEffect = watchEffect
+;(globalThis as any).nextTick = nextTick
 
 // Pinia
 ;(globalThis as any).defineStore = defineStore
