@@ -97,22 +97,28 @@ export const CHAT_EVENT_REGISTRY: ChatEventDescriptor[] = [
     sdkType: 'SDKHookResponseMessage', sdkVersionValidated: SDK_VERSION },
 
   // Task lifecycle — four subtypes collapse into ChatTaskEntry via mutate by task_id.
-  { type: 'task_started', kind: 'task-entry', relationship: 'spawn',
+  // SDK type: system / task_started|task_updated|task_progress|task_notification
+  { type: 'system', subtype: 'task_started', kind: 'task-entry', relationship: 'spawn',
     correlationKey: (e: any) => e?.task_id,
     tier: 'T2', component: 'ChatTaskEntry', defaultMode: 'compact',
     sdkType: 'SDKTaskStartedMessage', sdkVersionValidated: SDK_VERSION },
-  { type: 'task_updated', kind: 'task-entry', relationship: 'mutate',
+  { type: 'system', subtype: 'task_updated', kind: 'task-entry', relationship: 'mutate',
     correlationKey: (e: any) => e?.task_id,
     tier: 'T2', defaultMode: 'compact',
     sdkType: 'SDKTaskUpdatedMessage', sdkVersionValidated: SDK_VERSION },
-  { type: 'task_progress', kind: 'task-entry', relationship: 'mutate',
+  { type: 'system', subtype: 'task_progress', kind: 'task-entry', relationship: 'mutate',
     correlationKey: (e: any) => e?.task_id,
     tier: 'T2', defaultMode: 'compact',
     sdkType: 'SDKTaskProgressMessage', sdkVersionValidated: SDK_VERSION },
-  { type: 'task_notification', kind: 'task-entry', relationship: 'mutate',
+  { type: 'system', subtype: 'task_notification', kind: 'task-entry', relationship: 'mutate',
     correlationKey: (e: any) => e?.task_id,
     tier: 'T2', defaultMode: 'compact',
     sdkType: 'SDKTaskNotificationMessage', sdkVersionValidated: SDK_VERSION },
+
+  // Tool progress — side-channel progress ticker while a tool runs.
+  { type: 'tool_progress', kind: 'generic-system', relationship: 'side-channel',
+    tier: 'T2', defaultMode: 'badge',
+    sdkType: 'SDKToolProgressMessage', sdkVersionValidated: SDK_VERSION },
 
   // User replay — treat as a spawn with a distinct kind so the header can mark it.
   // Reducer detects replay via a flag inside the raw envelope rather than SDK "type" (both use 'user'),
@@ -152,6 +158,9 @@ export const CHAT_EVENT_REGISTRY: ChatEventDescriptor[] = [
     tier: 'T3', defaultMode: 'badge',
     sdkType: 'SDKPromptSuggestionMessage', sdkVersionValidated: SDK_VERSION },
 ]
+
+/** The SDK interface names covered by the registry — used by the drift test. */
+export type RegisteredSdkType = typeof CHAT_EVENT_REGISTRY[number]['sdkType']
 
 /** Find the descriptor matching a raw event, or null if unknown. */
 export function findDescriptor(type: string, subtype?: string): ChatEventDescriptor | null {
