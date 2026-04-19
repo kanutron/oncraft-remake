@@ -220,21 +220,19 @@ export class SessionService {
 			});
 		}
 
-		// Re-fetch to get any prefs we just persisted (session is guaranteed to
-		// exist here — we threw above if it was missing).
-		const stored = this.store.getSession(sessionId) ?? session;
-
 		this.processManager.send(sessionId, {
 			cmd: "start",
 			projectPath: cwd,
 			prompt: message,
 			sessionId: session.claudeSessionId ?? undefined,
-			model: opts.model ?? stored.preferredModel ?? undefined,
-			effort: opts.effort ?? stored.preferredEffort ?? undefined,
+			model: opts.model ?? session.preferredModel ?? undefined,
+			effort: opts.effort ?? session.preferredEffort ?? undefined,
 			permissionMode:
-				opts.permissionMode ?? stored.preferredPermissionMode ?? undefined,
-			thinkingMode: opts.thinkingMode ?? stored.thinkingMode ?? undefined,
-			thinkingBudget: opts.thinkingBudget ?? stored.thinkingBudget ?? undefined,
+				opts.permissionMode ?? session.preferredPermissionMode ?? undefined,
+			thinkingMode: opts.thinkingMode ?? session.thinkingMode ?? undefined,
+			thinkingBudget:
+				opts.thinkingBudget ?? session.thinkingBudget ?? undefined,
+			// Not session-persisted by design (see spec §3 non-goals).
 			fallbackModel: opts.fallbackModel,
 		});
 

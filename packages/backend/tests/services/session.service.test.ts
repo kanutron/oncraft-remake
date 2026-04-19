@@ -13,20 +13,22 @@ import { createTestRepo } from "../helpers/test-repo";
 
 // ---------------------------------------------------------------------------
 // Stub ProcessManager — used only in the preferences describe block below.
-// The real ProcessManager spawns a bridge subprocess; this stub records calls.
+// Structural stub (does NOT extend ProcessManager) so it never silently
+// inherits new methods added to the concrete class.
+// Cast via `as unknown as ProcessManager` when passing to SessionService.
 // ---------------------------------------------------------------------------
-class StubProcessManager extends ProcessManager {
+class StubProcessManager {
 	sent: Record<string, unknown>[] = [];
 
-	override async spawn(_sessionId: string, _cwd: string): Promise<void> {}
-	override async waitForReady(_sessionId: string): Promise<void> {}
-	override isAlive(_sessionId: string): boolean {
+	async spawn(_sessionId: string, _cwd: string): Promise<void> {}
+	async waitForReady(_sessionId: string): Promise<void> {}
+	isAlive(_sessionId: string): boolean {
 		return true;
 	}
-	override send(_sessionId: string, command: Record<string, unknown>): void {
+	send(_sessionId: string, command: Record<string, unknown>): void {
 		this.sent.push(command);
 	}
-	override async stopAll(): Promise<void> {}
+	async stop(_sessionId: string): Promise<void> {}
 }
 
 const DB_PATH = "/tmp/oncraft-session-test.db";
@@ -270,12 +272,12 @@ describe("send() — preferences", () => {
 		const store = new Store(PREFS_DB_PATH);
 		const eventBus = new EventBus();
 		const gitService = new GitService();
-		const processManager = new StubProcessManager(eventBus);
+		const processManager = new StubProcessManager();
 		const service = new SessionService(
 			store,
 			eventBus,
 			gitService,
-			processManager,
+			processManager as unknown as ProcessManager,
 		);
 
 		const repoId = "repo-prefs-1";
