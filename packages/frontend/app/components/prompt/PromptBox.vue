@@ -24,18 +24,19 @@ const chatStatus = computed(() => {
   return 'ready'
 })
 
-// Read toolbar values via provide/inject or template ref
-const toolbarRef = ref<{ model: Ref<string>; effort: Ref<string> } | null>(null)
-
 async function handleSubmit() {
   const text = promptText.value.trim()
   if (!text || isDisabled.value) return
-
   isSubmitting.value = true
   try {
-    const model = toolbarRef.value?.model.value
-    const effort = toolbarRef.value?.effort.value
-    await sessionStore.send(props.sessionId, text, { model, effort })
+    const s = session.value
+    await sessionStore.send(props.sessionId, text, {
+      model: s?.preferredModel ?? undefined,
+      effort: s?.preferredEffort ?? undefined,
+      permissionMode: s?.preferredPermissionMode ?? undefined,
+      thinkingMode: s?.thinkingMode ?? undefined,
+      thinkingBudget: s?.thinkingBudget ?? undefined,
+    })
     promptText.value = ''
   } finally {
     isSubmitting.value = false
@@ -45,13 +46,11 @@ async function handleSubmit() {
 async function handleInterrupt() {
   await sessionStore.interrupt(props.sessionId)
 }
-
-defineExpose({ toolbarRef })
 </script>
 
 <template>
   <div class="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950">
-    <PromptToolbar ref="toolbarRef" />
+    <PromptToolbar :session-id="sessionId" />
 
     <div class="px-4 pb-4">
       <UChatPrompt

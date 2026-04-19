@@ -51,7 +51,17 @@ export const useSessionStore = defineStore('session', () => {
     return session
   }
 
-  async function send(sessionId: string, message: string, opts: { model?: string; effort?: string } = {}) {
+  async function send(
+    sessionId: string,
+    message: string,
+    opts: {
+      model?: string
+      effort?: string
+      permissionMode?: string
+      thinkingMode?: 'off' | 'adaptive' | 'fixed'
+      thinkingBudget?: number
+    } = {},
+  ) {
     await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/send`, {
       method: 'POST',
       body: { message, ...opts },
