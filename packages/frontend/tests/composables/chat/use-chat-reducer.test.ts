@@ -40,3 +40,48 @@ describe('useChatReducer — spawn / discard / side-channel', () => {
     expect(components.value.map(c => c.kind)).toEqual(['user', 'system-init'])
   })
 })
+
+describe('useChatReducer — fan-out', () => {
+  it('fans out an assistant message with text + tool_use blocks into 2 components', () => {
+    const src = ref([makeMessage({
+      type: 'assistant',
+      message: {
+        id: 'msg_1',
+        content: [
+          { type: 'text', text: 'ok' },
+          { type: 'tool_use', id: 'tool_a', name: 'Bash', input: { command: 'ls' } },
+        ],
+      },
+    })])
+    const { components } = useChatReducer(src)
+    expect(components.value).toHaveLength(2)
+    expect(components.value[0].kind).toBe('block-text')
+    expect(components.value[1].kind).toBe('block-tool-use')
+    expect(components.value[1].componentKey).toBe('tool_a') // tool_use_id for correlation
+  })
+
+  it('falls back to index-based key for blocks with no id', () => {
+    const src = ref([makeMessage({
+      type: 'assistant',
+      message: { id: 'msg_2', content: [{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] },
+    })])
+    const { components } = useChatReducer(src)
+    expect(components.value.map(c => c.componentKey)).toEqual(['msg_2:0', 'msg_2:1'])
+  })
+
+  it('assigns defaults: text=full, thinking=compact, tool_use=badge', () => {
+    const src = ref([makeMessage({
+      type: 'assistant',
+      message: {
+        id: 'msg_3',
+        content: [
+          { type: 'text', text: 't' },
+          { type: 'thinking', thinking: 'hmm' },
+          { type: 'tool_use', id: 'x', name: 'Read', input: {} },
+        ],
+      },
+    })])
+    const { components } = useChatReducer(src)
+    expect(components.value.map(c => c.defaultMode)).toEqual(['full', 'compact', 'badge'])
+  })
+})
