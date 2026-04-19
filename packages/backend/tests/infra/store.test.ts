@@ -206,4 +206,96 @@ describe("session preferences columns", () => {
 		expect(got?.thinkingMode).toBe("fixed");
 		expect(got?.thinkingBudget).toBe(12000);
 	});
+
+	it("partial update skips undefined keys and preserves existing values", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/z",
+			name: "z",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		// Seed all five prefs.
+		store.updateSessionPreferences(sessionId, {
+			preferredModel: "opus",
+			preferredEffort: "high",
+			preferredPermissionMode: "acceptEdits",
+			thinkingMode: "fixed",
+			thinkingBudget: 8000,
+		});
+		// Partial update — only preferredModel is provided; the rest are undefined (omitted).
+		store.updateSessionPreferences(sessionId, { preferredModel: "haiku" });
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredModel).toBe("haiku");
+		expect(got?.preferredEffort).toBe("high");
+		expect(got?.preferredPermissionMode).toBe("acceptEdits");
+		expect(got?.thinkingMode).toBe("fixed");
+		expect(got?.thinkingBudget).toBe(8000);
+	});
+
+	it("null overwrites an existing value clearing a preference", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/w",
+			name: "w",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		// Seed preferredEffort.
+		store.updateSessionPreferences(sessionId, { preferredEffort: "high" });
+		// Explicit null must overwrite the seeded value.
+		store.updateSessionPreferences(sessionId, { preferredEffort: null });
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredEffort).toBeNull();
+	});
 });
