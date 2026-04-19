@@ -32,7 +32,16 @@ function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
     }
     return { componentKey, kind: mapping.kind, data: dataWithParent, defaultMode: mapping.defaultMode }
   })
-  return [header, ...blockComps]
+  // Skip the header for turns with no narrative — tool-only or signed-empty-thinking
+  // messages produce inline badges that flow consecutively when uninterrupted by
+  // a block-level header.
+  const hasNarrative = blocks.some((b) => {
+    if (b.type === 'text') return !!(b.text ?? '').trim()
+    if (b.type === 'thinking') return !!(b.thinking ?? '').trim()
+    if (b.type === 'redacted_thinking') return true
+    return false
+  })
+  return hasNarrative ? [header, ...blockComps] : blockComps
 }
 
 export function useChatReducer(source: Ref<ChatMessage[]>) {

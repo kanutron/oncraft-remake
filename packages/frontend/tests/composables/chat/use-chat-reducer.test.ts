@@ -102,6 +102,30 @@ describe('useChatReducer — fan-out', () => {
     expect(components.value[0].componentKey).toBe('m1:header')
     expect(components.value[0].defaultMode).toBe('compact')
   })
+
+  it('skips the header for tool-only assistant turns so consecutive badges flow inline', () => {
+    const src = ref([makeMessage({
+      type: 'assistant',
+      message: { id: 'm_tool_only', content: [{ type: 'tool_use', id: 'tu_1', name: 'Read', input: {} }] },
+    })])
+    const { components } = useChatReducer(src)
+    expect(components.value.map(c => c.kind)).toEqual(['block-tool-use'])
+  })
+
+  it('skips the header when thinking is signed-empty and the rest are tool_uses', () => {
+    const src = ref([makeMessage({
+      type: 'assistant',
+      message: {
+        id: 'm_signed',
+        content: [
+          { type: 'thinking', thinking: '', signature: 'sig-abc' },
+          { type: 'tool_use', id: 'tu_2', name: 'Bash', input: {} },
+        ],
+      },
+    })])
+    const { components } = useChatReducer(src)
+    expect(components.value.map(c => c.kind)).toEqual(['block-thinking', 'block-tool-use'])
+  })
 })
 
 describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
@@ -117,8 +141,9 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value).toHaveLength(2) // header + tool_use; user message with only tool_result is not a separate spawn
-    const tool = components.value[1]
+    // Tool-only assistant turn skips the header; tool_result-only user message is folded
+    expect(components.value).toHaveLength(1)
+    const tool = components.value[0]
     expect(tool.kind).toBe('block-tool-use')
     expect((tool.data as any).tool_result).toMatchObject({ content: 'output', is_error: false })
     expect(tool.status).toBe('success')
@@ -130,7 +155,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'boom', is_error: true }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[1].status).toBe('error')
+    expect(components.value[0].status).toBe('error')
   })
 
   it('flips defaultMode from badge to compact for failed tools', () => {
@@ -139,7 +164,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't3', content: 'x', is_error: true }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[1].defaultMode).toBe('compact')
+    expect(components.value[0].defaultMode).toBe('compact')
   })
 
   it('tool_use without result shows status=running', () => {
@@ -147,7 +172,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't4', name: 'Read', input: {} }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[1].status).toBe('running')
+    expect(components.value[0].status).toBe('running')
   })
 })
 
