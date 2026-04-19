@@ -50,8 +50,39 @@ export function linkifyFilePaths(html: string): string {
 const JS_FRAME_RE = /^(\s*at\s+[^\n]*\([\w./-]+\.\w+:\d+:\d+\))$/gm
 const PY_FRAME_RE = /^(\s*File\s+"[^"]+",\s*line\s+\d+(?:,\s*in\s+[^\n]+)?)$/gm
 
+// Single-line (non-multiline) versions used for matching a shiki `.line` element's textContent.
+const JS_FRAME_LINE_RE = /^\s*at\s+[^\n]*\([\w./-]+\.\w+:\d+:\d+\)\s*$/
+const PY_FRAME_LINE_RE = /^\s*File\s+"[^"]+",\s*line\s+\d+(?:,\s*in\s+[^\n]+)?\s*$/
+
+function isStackFrameLine(text: string): boolean {
+  return JS_FRAME_LINE_RE.test(text) || PY_FRAME_LINE_RE.test(text)
+}
+
 export function formatStackTraces(html: string): string {
   if (!html) return html
-  return html.replace(JS_FRAME_RE, '<span class="stack-frame">$1</span>')
-             .replace(PY_FRAME_RE, '<span class="stack-frame">$1</span>')
+
+  // First: regex pass — catches plain text inside <pre><code> that hasn't been
+  // split into per-line spans (i.e. HTML that never went through shiki).
+  let out = html
+    .replace(JS_FRAME_RE, '<span class="stack-frame">$1</span>')
+    .replace(PY_FRAME_RE, '<span class="stack-frame">$1</span>')
+
+  // Second: DOM pass — shiki wraps each rendered line as
+  // `<span class="line"><span>...</span></span>`, so the anchored regex above
+  // never matches. Walk `.line` elements and tag the ones whose textContent
+  // matches a stack-frame pattern.
+  if (typeof DOMParser === 'undefined') return out
+  const doc = new DOMParser().parseFromString(`<div>${out}</div>`, 'text/html')
+  const root = doc.body.firstElementChild
+  if (!root) return out
+  const lines = root.querySelectorAll('span.line')
+  let mutated = false
+  for (const line of Array.from(lines)) {
+    const text = line.textContent ?? ''
+    if (isStackFrameLine(text)) {
+      line.classList.add('stack-frame')
+      mutated = true
+    }
+  }
+  return mutated ? root.innerHTML : out
 }

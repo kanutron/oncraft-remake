@@ -52,3 +52,17 @@ describe('renderMarkdown before init', () => {
     expect(typeof renderMarkdown('test')).toBe('string')
   })
 })
+
+describe('renderMarkdown — post-processors', () => {
+  it('linkifies file paths in prose', async () => {
+    await ensureMarkdown()
+    const html = renderMarkdown('see src/foo.ts:42 for the bug')
+    expect(html).toContain('href="src/foo.ts#L42"')
+  })
+
+  it('styles JS stack frames inside fenced code', async () => {
+    await ensureMarkdown()
+    const html = renderMarkdown('```\nError: x\n    at foo (src/a.ts:1:1)\n```')
+    expect(html).toContain('stack-frame')
+  })
+})

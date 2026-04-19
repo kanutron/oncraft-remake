@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import Shiki from '@shikijs/markdown-it'
 import { sanitize } from './sanitize'
+import { linkifyFilePaths, formatStackTraces } from './post-processors'
 
 const SHIKI_LANGS = [
   'bash', 'shell', 'sh', 'zsh',
@@ -43,6 +44,10 @@ function fallback(source: string): string {
   return `<pre class="whitespace-pre-wrap"><code>${escapeHtml(source)}</code></pre>`
 }
 
+function hasDomParser(): boolean {
+  return typeof DOMParser !== 'undefined'
+}
+
 /** Synchronous render. Returns fallback `<pre>` if shiki is still initializing. */
 export function renderMarkdown(source: string): string {
   if (!mdInstance) {
@@ -51,7 +56,10 @@ export function renderMarkdown(source: string): string {
     return fallback(source)
   }
   const rendered = mdInstance.render(source)
-  return sanitize(rendered)
+  const clean = sanitize(rendered)
+  const withStacks = formatStackTraces(clean)
+  const withLinks = hasDomParser() ? linkifyFilePaths(withStacks) : withStacks
+  return withLinks
 }
 
 /**
