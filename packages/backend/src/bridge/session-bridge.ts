@@ -17,6 +17,9 @@ interface StartCommand {
 	model?: string;
 	effort?: string;
 	permissionMode?: string;
+	thinkingMode?: "off" | "adaptive" | "fixed";
+	thinkingBudget?: number;
+	fallbackModel?: string;
 }
 
 interface ReplyCommand {
@@ -139,8 +142,12 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		return;
 	}
 
-	// Dynamic import to avoid loading SDK at module level
-	const sdk = await import("@anthropic-ai/claude-agent-sdk");
+	// Dynamic import to avoid loading SDK at module level.
+	// ONCRAFT_SDK_PATH is a test-only seam: set it to a mock SDK module path
+	// to intercept the import without spawning the real Claude agent.
+	const sdkPath =
+		process.env.ONCRAFT_SDK_PATH ?? "@anthropic-ai/claude-agent-sdk";
+	const sdk = await import(sdkPath);
 
 	activeStream = new MessageStream();
 	activeStream.enqueue(cmd.prompt);
@@ -150,8 +157,6 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		cwd: cmd.projectPath,
 		abortController: activeAbort,
 		settingSources: ["user", "project", "local"],
-		model: cmd.model,
-		permissionMode: cmd.permissionMode,
 		canUseTool: async (
 			toolName: string,
 			toolInput: Record<string, unknown>,
@@ -175,6 +180,22 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 			});
 		},
 	};
+
+	if (cmd.model) options.model = cmd.model;
+	if (cmd.fallbackModel) options.fallbackModel = cmd.fallbackModel;
+	if (cmd.effort) options.effort = cmd.effort;
+	if (cmd.permissionMode) options.permissionMode = cmd.permissionMode;
+
+	if (cmd.thinkingMode === "adaptive") {
+		options.thinking = { type: "adaptive" };
+	} else if (
+		cmd.thinkingMode === "fixed" &&
+		typeof cmd.thinkingBudget === "number"
+	) {
+		options.thinking = { type: "enabled", budgetTokens: cmd.thinkingBudget };
+	} else if (cmd.thinkingMode === "off") {
+		options.thinking = { type: "disabled" };
+	}
 
 	if (cmd.sessionId) {
 		options.resume = cmd.sessionId;
