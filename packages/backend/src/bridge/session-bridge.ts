@@ -188,11 +188,18 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 
 	if (cmd.thinkingMode === "adaptive") {
 		options.thinking = { type: "adaptive" };
-	} else if (
-		cmd.thinkingMode === "fixed" &&
-		typeof cmd.thinkingBudget === "number"
-	) {
-		options.thinking = { type: "enabled", budgetTokens: cmd.thinkingBudget };
+	} else if (cmd.thinkingMode === "fixed") {
+		if (typeof cmd.thinkingBudget === "number" && cmd.thinkingBudget > 0) {
+			options.thinking = { type: "enabled", budgetTokens: cmd.thinkingBudget };
+		} else {
+			emit({
+				type: "bridge:error",
+				message: `thinkingMode="fixed" requires a positive thinkingBudget; got ${JSON.stringify(cmd.thinkingBudget)}`,
+			});
+			activeStream = null;
+			activeAbort = null;
+			return;
+		}
 	} else if (cmd.thinkingMode === "off") {
 		options.thinking = { type: "disabled" };
 	}

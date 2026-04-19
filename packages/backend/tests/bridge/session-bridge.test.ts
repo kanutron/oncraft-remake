@@ -18,15 +18,18 @@ async function readLine(stream: ReadableStream<Uint8Array>): Promise<string> {
 	const decoder = new TextDecoder();
 	const reader = stream.getReader();
 	let buffer = "";
-	while (true) {
-		const { value, done } = await reader.read();
-		if (done) break;
-		buffer += decoder.decode(value, { stream: true });
-		const newlineIdx = buffer.indexOf("\n");
-		if (newlineIdx !== -1) {
-			reader.releaseLock();
-			return buffer.slice(0, newlineIdx);
+	try {
+		while (true) {
+			const { value, done } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+			const newlineIdx = buffer.indexOf("\n");
+			if (newlineIdx !== -1) {
+				return buffer.slice(0, newlineIdx);
+			}
 		}
+	} finally {
+		reader.releaseLock();
 	}
 	return buffer;
 }
@@ -40,27 +43,32 @@ function sendCommand(
 
 /**
  * Spawn the bridge with the mock SDK, send a start command, collect all events
- * until the bridge exits, and return the options object captured by the mock.
+ * until a stop condition is met (terminal event found or timeout), and return
+ * all captured events.
  *
- * The mock SDK emits `bridge:test:options_captured` synchronously inside
- * `handleStart` before yielding any messages, so the event always arrives
- * before `bridge:exit` / process exit.
+ * `stopWhen` — predicate called on each parsed event; collection ends when it
+ * returns true. Defaults to stopping on `bridge:test:options_captured`.
+ * Pass `() => false` to collect until timeout (useful for error-path tests).
  */
-async function runStartAndCaptureOptions(
+async function runStartAndCaptureEvents(
 	startCmd: Record<string, unknown>,
-): Promise<Record<string, unknown>> {
+	{
+		stopWhen = (e: Record<string, unknown>) =>
+			e.type === "bridge:test:options_captured",
+		timeoutMs = 5000,
+	}: {
+		stopWhen?: (e: Record<string, unknown>) => boolean;
+		timeoutMs?: number;
+	} = {},
+): Promise<{ events: Record<string, unknown>[] }> {
 	const proc = spawnBridge({ ONCRAFT_SDK_PATH: MOCK_SDK_PATH });
 	const decoder = new TextDecoder();
 	const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
 
+	const events: Record<string, unknown>[] = [];
 	let buffer = "";
-	let capturedOptions: Record<string, unknown> | null = null;
+	let timedOut = false;
 
-	// Read until the process exits (mock SDK yields nothing, so the bridge
-	// loop completes quickly and the process exits after receiving `stop`).
-	sendCommand(proc, startCmd);
-
-	// Give the bridge a moment to process then stop it.
 	const collectLines = async () => {
 		while (true) {
 			const { value, done } = await reader.read();
@@ -72,35 +80,53 @@ async function runStartAndCaptureOptions(
 				if (!line.trim()) continue;
 				try {
 					const event = JSON.parse(line) as Record<string, unknown>;
-					if (event.type === "bridge:test:options_captured") {
-						capturedOptions = event.options as Record<string, unknown>;
-					}
+					events.push(event);
+					if (stopWhen(event)) return;
 				} catch {
 					// ignore non-JSON lines
 				}
 			}
-			if (capturedOptions !== null) break;
 		}
 	};
 
-	await Promise.race([
-		collectLines(),
-		// Timeout guard: if no options_captured event arrives within 5 s, bail.
-		new Promise<void>((_, reject) =>
-			setTimeout(
-				() => reject(new Error("Timeout waiting for options_captured")),
-				5000,
-			),
-		),
-	]);
+	let timer: ReturnType<typeof setTimeout> | null = null;
+	const timeoutPromise = new Promise<void>((_, reject) => {
+		timer = setTimeout(() => {
+			timedOut = true;
+			reject(new Error(`Timeout (${timeoutMs}ms) waiting for stop condition`));
+		}, timeoutMs);
+	});
 
-	sendCommand(proc, { cmd: "stop" });
-	await proc.exited;
+	try {
+		sendCommand(proc, startCmd);
+		await Promise.race([collectLines(), timeoutPromise]);
+	} finally {
+		if (timer !== null) clearTimeout(timer);
+		reader.releaseLock();
+		proc.kill();
+		await proc.exited;
+	}
 
-	if (capturedOptions === null) {
+	if (timedOut) {
+		throw new Error(`Timeout (${timeoutMs}ms) waiting for stop condition`);
+	}
+
+	return { events };
+}
+
+/**
+ * Convenience wrapper: run a start command and return only the captured SDK
+ * options from the mock's `bridge:test:options_captured` event.
+ */
+async function runStartAndCaptureOptions(
+	startCmd: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+	const { events } = await runStartAndCaptureEvents(startCmd);
+	const ev = events.find((e) => e.type === "bridge:test:options_captured");
+	if (!ev) {
 		throw new Error("bridge:test:options_captured event not received");
 	}
-	return capturedOptions;
+	return ev.options as Record<string, unknown>;
 }
 
 describe("Session Bridge", () => {
@@ -191,5 +217,52 @@ describe("bridge — SDK options wiring", () => {
 		expect(capturedOptions).not.toHaveProperty("effort");
 		expect(capturedOptions).not.toHaveProperty("thinking");
 		expect(capturedOptions).not.toHaveProperty("fallbackModel");
+	});
+
+	test("emits a bridge:error and aborts when thinkingMode=fixed has no valid budget", async () => {
+		const { events } = await runStartAndCaptureEvents(
+			{
+				cmd: "start",
+				projectPath: "/tmp",
+				prompt: "hi",
+				thinkingMode: "fixed",
+				// thinkingBudget intentionally missing
+			},
+			{
+				// Stop as soon as we see either the error or the options-captured event.
+				// The error path must NOT emit options_captured.
+				stopWhen: (e) =>
+					e.type === "bridge:error" ||
+					e.type === "bridge:test:options_captured",
+			},
+		);
+		const err = events.find((e: { type: string }) => e.type === "bridge:error");
+		expect(err).toBeDefined();
+		expect((err as { message: string }).message).toMatch(/thinkingBudget/);
+		// sdk.query must never have been called
+		expect(
+			events.find(
+				(e: { type: string }) => e.type === "bridge:test:options_captured",
+			),
+		).toBeUndefined();
+	});
+
+	test("emits a bridge:error when thinkingMode=fixed has a non-positive budget", async () => {
+		const { events } = await runStartAndCaptureEvents(
+			{
+				cmd: "start",
+				projectPath: "/tmp",
+				prompt: "hi",
+				thinkingMode: "fixed",
+				thinkingBudget: 0,
+			},
+			{
+				stopWhen: (e) =>
+					e.type === "bridge:error" ||
+					e.type === "bridge:test:options_captured",
+			},
+		);
+		const err = events.find((e: { type: string }) => e.type === "bridge:error");
+		expect(err).toBeDefined();
 	});
 });
