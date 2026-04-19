@@ -121,6 +121,36 @@ export const CHAT_EVENT_REGISTRY: ChatEventDescriptor[] = [
     correlationKey: (e: any) => e?.message?.id,
     tier: 'T2', component: 'ChatUserReplay', defaultMode: 'full',
     sdkType: 'SDKUserMessageReplay', sdkVersionValidated: SDK_VERSION },
+
+  // ── T3: dedicated ────────────────────────────────────────────
+  { type: 'system', subtype: 'memory_recall', kind: 'memory-recall', relationship: 'spawn',
+    tier: 'T3', component: 'ChatMemoryRecall', defaultMode: 'badge',
+    sdkType: 'SDKMemoryRecallMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'system', subtype: 'elicitation_complete', kind: 'elicitation-complete', relationship: 'spawn',
+    tier: 'T3', component: 'ChatElicitationComplete', defaultMode: 'compact',
+    sdkType: 'SDKElicitationCompleteMessage', sdkVersionValidated: SDK_VERSION },
+
+  // ── T3: generic stream-spawn overflow ────────────────────────
+  { type: 'system', subtype: 'plugin_install', kind: 'generic-system', relationship: 'spawn',
+    tier: 'T3', component: 'ChatGenericSystemEvent', defaultMode: 'badge',
+    sdkType: 'SDKPluginInstallMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'system', subtype: 'files_persisted', kind: 'generic-system', relationship: 'spawn',
+    tier: 'T3', component: 'ChatGenericSystemEvent', defaultMode: 'badge',
+    sdkType: 'SDKFilesPersistedEvent', sdkVersionValidated: SDK_VERSION },
+
+  // ── T3: side-channel (not in stream) ─────────────────────────
+  { type: 'system', subtype: 'session_state_changed', kind: 'generic-system', relationship: 'side-channel',
+    tier: 'T3', defaultMode: 'badge',
+    sdkType: 'SDKSessionStateChangedMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'auth_status', kind: 'generic-system', relationship: 'side-channel',
+    tier: 'T3', defaultMode: 'badge',
+    sdkType: 'SDKAuthStatusMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'system', subtype: 'mirror_error', kind: 'generic-system', relationship: 'side-channel',
+    tier: 'T3', defaultMode: 'badge',
+    sdkType: 'SDKMirrorErrorMessage', sdkVersionValidated: SDK_VERSION },
+  { type: 'prompt_suggestion', kind: 'generic-system', relationship: 'side-channel',
+    tier: 'T3', defaultMode: 'badge',
+    sdkType: 'SDKPromptSuggestionMessage', sdkVersionValidated: SDK_VERSION },
 ]
 
 /** Find the descriptor matching a raw event, or null if unknown. */
