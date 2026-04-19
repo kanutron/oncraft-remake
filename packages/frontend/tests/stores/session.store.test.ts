@@ -363,17 +363,17 @@ describe('useSessionStore', () => {
   /* ── appendHistoryMessages ─────────────────────────────────────── */
 
   describe('appendHistoryMessages()', () => {
-    it('rewrites type:user to type:user_replay and passes others through', () => {
+    it('appends each raw message unchanged so tool_use/tool_result pairing works', () => {
       const store = useSessionStore()
       store.appendHistoryMessages('sess-1', [
-        { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'hi' }] } },
-        { type: 'assistant', message: { role: 'assistant', content: [] } },
+        { type: 'user', message: { role: 'user', content: 'hello' } },
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 'tu_1' }] } },
+        { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'ok' }] } },
       ])
 
       const stored = store.messagesForSession('sess-1')
-      expect(stored).toHaveLength(2)
-      expect(stored[0]!.raw.type).toBe('user_replay')
-      expect(stored[1]!.raw.type).toBe('assistant')
+      expect(stored).toHaveLength(3)
+      expect(stored.map(m => m.raw.type)).toEqual(['user', 'assistant', 'user'])
     })
   })
 

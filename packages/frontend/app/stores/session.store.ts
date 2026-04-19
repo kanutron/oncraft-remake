@@ -79,8 +79,7 @@ export const useSessionStore = defineStore('session', () => {
 
   function appendHistoryMessages(sessionId: string, rawMessages: Record<string, unknown>[]) {
     for (const raw of rawMessages) {
-      const tagged = raw.type === 'user' ? { ...raw, type: 'user_replay' } : raw
-      appendMessage(sessionId, tagged)
+      appendMessage(sessionId, raw)
     }
   }
 
