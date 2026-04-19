@@ -11,6 +11,10 @@ import ChatResult from '~/components/chat/ChatResult.vue'
 import ChatCompactBoundary from '~/components/chat/ChatCompactBoundary.vue'
 import ChatToolConfirmation from '~/components/chat/ChatToolConfirmation.vue'
 import ChatBridgeError from '~/components/chat/ChatBridgeError.vue'
+import ChatAPIRetry from '~/components/chat/ChatAPIRetry.vue'
+import ChatLocalCommandOutput from '~/components/chat/ChatLocalCommandOutput.vue'
+import ChatNotification from '~/components/chat/ChatNotification.vue'
+import ChatToolUseSummary from '~/components/chat/ChatToolUseSummary.vue'
 
 const MAP: Partial<Record<ChatEventKind, Component>> = {
   'assistant-header': ChatAssistantHeader,
@@ -23,6 +27,10 @@ const MAP: Partial<Record<ChatEventKind, Component>> = {
   'compact-boundary': ChatCompactBoundary,
   'tool-confirmation': ChatToolConfirmation,
   'bridge-error': ChatBridgeError,
+  'api-retry': ChatAPIRetry,
+  'local-command-output': ChatLocalCommandOutput,
+  'notification': ChatNotification,
+  'tool-use-summary': ChatToolUseSummary,
 }
 
 export function resolveChatComponent(kind: ChatEventKind): Component | null {
