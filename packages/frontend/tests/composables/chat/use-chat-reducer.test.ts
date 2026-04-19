@@ -228,9 +228,40 @@ describe('useChatReducer — streaming and sticky', () => {
   })
 
   it('marks active tool-confirmation as sticky', () => {
-    const src = ref([makeMessage({ event: 'session:tool-confirmation', type: 'tool_confirmation', tool: 'Bash' })])
+    const src = ref([makeMessage({ event: 'session:tool-confirmation', type: 'tool_confirmation', toolUseID: 'tu_1', toolName: 'Bash' })])
     const { components } = useChatReducer(src)
     expect(components.value[0].sticky).toBe(true)
+  })
+
+  it('keeps tool-confirmation visible after the tool_use block arrives (SDK emits tool_use before canUseTool)', () => {
+    // The assistant's tool_use block always precedes the canUseTool callback.
+    // Suppressing on tool_use would hide the banner we need to show.
+    const src = ref([
+      makeMessage({
+        type: 'assistant',
+        message: { id: 'm1', content: [{ type: 'tool_use', id: 'tu_1', name: 'Bash', input: {} }] },
+      }),
+      makeMessage({ type: 'tool_confirmation', toolUseID: 'tu_1', toolName: 'Bash' }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value.some(c => c.kind === 'tool-confirmation')).toBe(true)
+  })
+
+  it('suppresses tool-confirmation once the tool_result for the same id has been recorded', () => {
+    const src = ref([
+      makeMessage({
+        type: 'assistant',
+        message: { id: 'm1', content: [{ type: 'tool_use', id: 'tu_1', name: 'Bash', input: {} }] },
+      }),
+      makeMessage({ type: 'tool_confirmation', toolUseID: 'tu_1', toolName: 'Bash' }),
+      makeMessage({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'ok' }] },
+      }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value.some(c => c.kind === 'tool-confirmation')).toBe(false)
+    expect(components.value.some(c => c.kind === 'block-tool-use')).toBe(true)
   })
 
   it('filters subagent turns (parent_tool_use_id set) from the top-level stream', () => {

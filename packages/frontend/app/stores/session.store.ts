@@ -51,7 +51,17 @@ export const useSessionStore = defineStore('session', () => {
     return session
   }
 
-  async function send(sessionId: string, message: string, opts: { model?: string; effort?: string } = {}) {
+  async function send(
+    sessionId: string,
+    message: string,
+    opts: {
+      model?: string
+      effort?: string
+      permissionMode?: string
+      thinkingMode?: 'off' | 'adaptive' | 'fixed'
+      thinkingBudget?: number
+    } = {},
+  ) {
     await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/send`, {
       method: 'POST',
       body: { message, ...opts },
@@ -170,6 +180,23 @@ export const useSessionStore = defineStore('session', () => {
     return { blocked: false as const }
   }
 
+  async function updatePreferences(
+    sessionId: string,
+    prefs: {
+      preferredModel?: string | null
+      preferredEffort?: string | null
+      preferredPermissionMode?: string | null
+      thinkingMode?: 'off' | 'adaptive' | 'fixed' | null
+      thinkingBudget?: number | null
+    },
+  ) {
+    const updated = await $fetch<Session>(
+      `${config.public.backendUrl}/sessions/${sessionId}/preferences`,
+      { method: 'PATCH', body: prefs },
+    )
+    sessions.value.set(sessionId, updated)
+  }
+
   function removeSession(sessionId: string, repositoryId: string) {
     sessions.value.delete(sessionId)
     messages.value.delete(sessionId)
@@ -198,6 +225,6 @@ export const useSessionStore = defineStore('session', () => {
     subagentsForSession, liveSubagentMessagesFor,
     fetchForRepository, create, send, reply, interrupt, setActive, hydrate,
     hydrateSubagents, setSubagents,
-    appendMessage, appendHistoryMessages, updateState, destroy, removeSession,
+    appendMessage, appendHistoryMessages, updateState, updatePreferences, destroy, removeSession,
   }
 })

@@ -23,6 +23,11 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     costUsd: 0,
     inputTokens: 0,
     outputTokens: 0,
+    preferredModel: null,
+    preferredEffort: null,
+    preferredPermissionMode: null,
+    thinkingMode: null,
+    thinkingBudget: null,
     ...overrides,
   }
 }
@@ -504,6 +509,32 @@ describe('useSessionStore', () => {
         'http://test:3101/sessions/s1?force=true',
         expect.objectContaining({ method: 'DELETE' }),
       )
+    })
+  })
+
+  /* ── updatePreferences ─────────────────────────────────────────── */
+
+  describe('updatePreferences()', () => {
+    it('PATCHes /sessions/:id/preferences and merges result into store', async () => {
+      const sessionId = 'sess-1'
+      const initial = makeSession({ id: sessionId, preferredModel: null, thinkingMode: null })
+      const updated = { ...initial, preferredModel: 'opus', thinkingMode: 'adaptive' as const }
+      const fetchMock = vi.fn().mockResolvedValueOnce(updated)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set(sessionId, initial)
+      await store.updatePreferences(sessionId, { preferredModel: 'opus', thinkingMode: 'adaptive' })
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/sessions/${sessionId}/preferences`),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: { preferredModel: 'opus', thinkingMode: 'adaptive' },
+        }),
+      )
+      expect(store.sessions.get(sessionId)?.preferredModel).toBe('opus')
+      expect(store.sessions.get(sessionId)?.thinkingMode).toBe('adaptive')
     })
   })
 

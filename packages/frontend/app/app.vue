@@ -1,10 +1,12 @@
 <script setup lang="ts">
 const repositoryStore = useRepositoryStore()
+const capabilities = useCapabilitiesStore()
 const { connect } = useWebSocket()
 
 onMounted(() => {
   repositoryStore.fetchAll()
   connect()
+  void capabilities.load()
 })
 </script>
 

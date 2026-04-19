@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { Store } from "../../src/infra/store";
 import { makeRepository, makeSession } from "../helpers/fixtures";
@@ -114,5 +114,188 @@ describe("Store - Sessions", () => {
 		store.createSession(s2);
 		store.deleteSessionsForRepository("repo-1");
 		expect(store.listSessions("repo-1")).toHaveLength(0);
+	});
+});
+
+describe("session preferences columns", () => {
+	it("defaults preference columns to null for a fresh session", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/x",
+			name: "x",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredModel).toBeNull();
+		expect(got?.preferredEffort).toBeNull();
+		expect(got?.preferredPermissionMode).toBeNull();
+		expect(got?.thinkingMode).toBeNull();
+		expect(got?.thinkingBudget).toBeNull();
+	});
+
+	it("persists preference fields via updateSessionPreferences", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/y",
+			name: "y",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		store.updateSessionPreferences(sessionId, {
+			preferredModel: "opus",
+			preferredEffort: "high",
+			preferredPermissionMode: "acceptEdits",
+			thinkingMode: "fixed",
+			thinkingBudget: 12000,
+		});
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredModel).toBe("opus");
+		expect(got?.preferredEffort).toBe("high");
+		expect(got?.preferredPermissionMode).toBe("acceptEdits");
+		expect(got?.thinkingMode).toBe("fixed");
+		expect(got?.thinkingBudget).toBe(12000);
+	});
+
+	it("partial update skips undefined keys and preserves existing values", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/z",
+			name: "z",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		// Seed all five prefs.
+		store.updateSessionPreferences(sessionId, {
+			preferredModel: "opus",
+			preferredEffort: "high",
+			preferredPermissionMode: "acceptEdits",
+			thinkingMode: "fixed",
+			thinkingBudget: 8000,
+		});
+		// Partial update — only preferredModel is provided; the rest are undefined (omitted).
+		store.updateSessionPreferences(sessionId, { preferredModel: "haiku" });
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredModel).toBe("haiku");
+		expect(got?.preferredEffort).toBe("high");
+		expect(got?.preferredPermissionMode).toBe("acceptEdits");
+		expect(got?.thinkingMode).toBe("fixed");
+		expect(got?.thinkingBudget).toBe(8000);
+	});
+
+	it("null overwrites an existing value clearing a preference", () => {
+		const store = new Store(":memory:");
+		const repoId = crypto.randomUUID();
+		store.createRepository({
+			id: repoId,
+			path: "/tmp/w",
+			name: "w",
+			createdAt: new Date().toISOString(),
+			lastOpenedAt: new Date().toISOString(),
+		});
+		const sessionId = crypto.randomUUID();
+		store.createSession({
+			id: sessionId,
+			repositoryId: repoId,
+			claudeSessionId: null,
+			name: "s",
+			sourceBranch: "main",
+			workBranch: null,
+			targetBranch: "main",
+			worktreePath: null,
+			state: "idle",
+			createdAt: new Date().toISOString(),
+			lastActivityAt: new Date().toISOString(),
+			costUsd: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
+		});
+		// Seed preferredEffort.
+		store.updateSessionPreferences(sessionId, { preferredEffort: "high" });
+		// Explicit null must overwrite the seeded value.
+		store.updateSessionPreferences(sessionId, { preferredEffort: null });
+		const got = store.getSession(sessionId);
+		expect(got).not.toBeNull();
+		expect(got?.preferredEffort).toBeNull();
 	});
 });

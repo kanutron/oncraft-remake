@@ -24,6 +24,9 @@ interface SendOptions {
 	model?: string;
 	effort?: string;
 	permissionMode?: string;
+	thinkingMode?: "off" | "adaptive" | "fixed";
+	thinkingBudget?: number;
+	fallbackModel?: string;
 }
 
 export class SessionService {
@@ -144,6 +147,11 @@ export class SessionService {
 			costUsd: 0,
 			inputTokens: 0,
 			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
 		};
 
 		this.store.createSession(session);
@@ -167,6 +175,19 @@ export class SessionService {
 
 	update(id: string, fields: { name?: string; targetBranch?: string }): void {
 		this.store.updateSessionFields(id, fields);
+	}
+
+	updatePreferences(
+		id: string,
+		prefs: {
+			preferredModel?: string | null;
+			preferredEffort?: string | null;
+			preferredPermissionMode?: string | null;
+			thinkingMode?: "off" | "adaptive" | "fixed" | null;
+			thinkingBudget?: number | null;
+		},
+	): void {
+		this.store.updateSessionPreferences(id, prefs);
 	}
 
 	async send(
@@ -195,14 +216,41 @@ export class SessionService {
 
 		this.setState(sessionId, "active");
 
+		const hasPrefsInBody =
+			opts.model !== undefined ||
+			opts.effort !== undefined ||
+			opts.permissionMode !== undefined ||
+			opts.thinkingMode !== undefined ||
+			opts.thinkingBudget !== undefined;
+
+		if (hasPrefsInBody) {
+			const prefs: Parameters<typeof this.store.updateSessionPreferences>[1] =
+				{};
+			if (opts.model !== undefined) prefs.preferredModel = opts.model;
+			if (opts.effort !== undefined) prefs.preferredEffort = opts.effort;
+			if (opts.permissionMode !== undefined)
+				prefs.preferredPermissionMode = opts.permissionMode;
+			if (opts.thinkingMode !== undefined)
+				prefs.thinkingMode = opts.thinkingMode;
+			if (opts.thinkingBudget !== undefined)
+				prefs.thinkingBudget = opts.thinkingBudget;
+			this.store.updateSessionPreferences(sessionId, prefs);
+		}
+
 		this.processManager.send(sessionId, {
 			cmd: "start",
 			projectPath: cwd,
 			prompt: message,
 			sessionId: session.claudeSessionId ?? undefined,
-			model: opts.model,
-			effort: opts.effort,
-			permissionMode: opts.permissionMode,
+			model: opts.model ?? session.preferredModel ?? undefined,
+			effort: opts.effort ?? session.preferredEffort ?? undefined,
+			permissionMode:
+				opts.permissionMode ?? session.preferredPermissionMode ?? undefined,
+			thinkingMode: opts.thinkingMode ?? session.thinkingMode ?? undefined,
+			thinkingBudget:
+				opts.thinkingBudget ?? session.thinkingBudget ?? undefined,
+			// Not session-persisted by design (see spec §3 non-goals).
+			fallbackModel: opts.fallbackModel,
 		});
 
 		this.eventBus.emit(cwd, "session:message", {

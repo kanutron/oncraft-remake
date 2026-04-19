@@ -17,6 +17,9 @@ interface StartCommand {
 	model?: string;
 	effort?: string;
 	permissionMode?: string;
+	thinkingMode?: "off" | "adaptive" | "fixed";
+	thinkingBudget?: number;
+	fallbackModel?: string;
 }
 
 interface ReplyCommand {
@@ -54,10 +57,22 @@ type BridgeCommand =
 // --- State ---
 
 let activeAbort: AbortController | null = null;
-const pendingApprovals = new Map<
-	string,
-	(result: { behavior: "allow" | "deny" }) => void
->();
+
+// Shape of the resolved value matches the SDK's `PermissionResult`:
+//   allow → { behavior: 'allow', updatedInput }   (updatedInput defaults to original toolInput)
+//   deny  → { behavior: 'deny',  message }
+// Returning just `{ behavior }` fails Zod validation inside the SDK (seen as
+// "Invalid input: expected string, received undefined" on `message`).
+type PermissionResult =
+	| { behavior: "allow"; updatedInput: Record<string, unknown> }
+	| { behavior: "deny"; message: string };
+
+interface PendingApproval {
+	resolve: (result: PermissionResult) => void;
+	toolInput: Record<string, unknown>;
+}
+
+const pendingApprovals = new Map<string, PendingApproval>();
 
 // --- Helpers ---
 
@@ -127,8 +142,12 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		return;
 	}
 
-	// Dynamic import to avoid loading SDK at module level
-	const sdk = await import("@anthropic-ai/claude-agent-sdk");
+	// Dynamic import to avoid loading SDK at module level.
+	// ONCRAFT_SDK_PATH is a test-only seam: set it to a mock SDK module path
+	// to intercept the import without spawning the real Claude agent.
+	const sdkPath =
+		process.env.ONCRAFT_SDK_PATH ?? "@anthropic-ai/claude-agent-sdk";
+	const sdk = await import(sdkPath);
 
 	activeStream = new MessageStream();
 	activeStream.enqueue(cmd.prompt);
@@ -138,11 +157,9 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		cwd: cmd.projectPath,
 		abortController: activeAbort,
 		settingSources: ["user", "project", "local"],
-		model: cmd.model,
-		permissionMode: cmd.permissionMode,
 		canUseTool: async (
 			toolName: string,
-			toolInput: unknown,
+			toolInput: Record<string, unknown>,
 			toolOptions: {
 				toolUseID: string;
 				agentID?: string;
@@ -158,11 +175,34 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 				agentID: toolOptions.agentID,
 				decisionReason: toolOptions.decisionReason,
 			});
-			return new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
-				pendingApprovals.set(toolUseID, resolve);
+			return new Promise<PermissionResult>((resolve) => {
+				pendingApprovals.set(toolUseID, { resolve, toolInput });
 			});
 		},
 	};
+
+	if (cmd.model) options.model = cmd.model;
+	if (cmd.fallbackModel) options.fallbackModel = cmd.fallbackModel;
+	if (cmd.effort) options.effort = cmd.effort;
+	if (cmd.permissionMode) options.permissionMode = cmd.permissionMode;
+
+	if (cmd.thinkingMode === "adaptive") {
+		options.thinking = { type: "adaptive" };
+	} else if (cmd.thinkingMode === "fixed") {
+		if (typeof cmd.thinkingBudget === "number" && cmd.thinkingBudget > 0) {
+			options.thinking = { type: "enabled", budgetTokens: cmd.thinkingBudget };
+		} else {
+			emit({
+				type: "bridge:error",
+				message: `thinkingMode="fixed" requires a positive thinkingBudget; got ${JSON.stringify(cmd.thinkingBudget)}`,
+			});
+			activeStream = null;
+			activeAbort = null;
+			return;
+		}
+	} else if (cmd.thinkingMode === "off") {
+		options.thinking = { type: "disabled" };
+	}
 
 	if (cmd.sessionId) {
 		options.resume = cmd.sessionId;
@@ -188,10 +228,13 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 }
 
 function handleReply(cmd: ReplyCommand): void {
-	const resolve = pendingApprovals.get(cmd.toolUseID);
-	if (resolve) {
-		resolve({ behavior: cmd.decision });
-		pendingApprovals.delete(cmd.toolUseID);
+	const pending = pendingApprovals.get(cmd.toolUseID);
+	if (!pending) return;
+	pendingApprovals.delete(cmd.toolUseID);
+	if (cmd.decision === "allow") {
+		pending.resolve({ behavior: "allow", updatedInput: pending.toolInput });
+	} else {
+		pending.resolve({ behavior: "deny", message: "Denied by user." });
 	}
 }
 

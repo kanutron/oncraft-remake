@@ -14,13 +14,16 @@ import { ProcessManager } from "../../src/services/process-manager";
 import { RepositoryService } from "../../src/services/repository.service";
 import { SessionService } from "../../src/services/session.service";
 
-export async function buildApp(opts?: { fsRoot?: string }) {
+export async function buildApp(opts?: {
+	fsRoot?: string;
+	processManager?: ProcessManager;
+}) {
 	const dbPath = `/tmp/oncraft-route-test-${Date.now()}.db`;
 	const store = new Store(dbPath);
 	const eventBus = new EventBus();
 	const gitService = new GitService();
 	const gitWatcher = new GitWatcher(eventBus, gitService);
-	const processManager = new ProcessManager(eventBus);
+	const processManager = opts?.processManager ?? new ProcessManager(eventBus);
 	const repositoryService = new RepositoryService(
 		store,
 		gitService,

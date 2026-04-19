@@ -32,6 +32,11 @@ export interface Session {
   costUsd: number
   inputTokens: number
   outputTokens: number
+  preferredModel: string | null
+  preferredEffort: string | null
+  preferredPermissionMode: string | null
+  thinkingMode: 'off' | 'adaptive' | 'fixed' | null
+  thinkingBudget: number | null
 }
 
 export type SessionState = 'idle' | 'starting' | 'active' | 'stopped' | 'error' | 'completed'

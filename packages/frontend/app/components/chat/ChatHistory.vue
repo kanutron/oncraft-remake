@@ -18,12 +18,7 @@ provide('chat:subagent-map', subagentMap)
 const stickyItems = computed(() => components.value.filter(c => c.sticky))
 const streamItems = computed(() => components.value.filter(c => !c.sticky))
 
-const lastUserMessage = computed(() => {
-  for (let i = streamItems.value.length - 1; i >= 0; i--) {
-    if (streamItems.value[i]!.kind === 'user') return streamItems.value[i]
-  }
-  return null
-})
+type StreamItem = (typeof streamItems.value)[number]
 
 // Auto-scroll
 const scrollContainer = ref<HTMLElement | null>(null)
@@ -33,58 +28,47 @@ function onScroll() {
   if (!scrollContainer.value) return
   const { scrollTop, scrollHeight, clientHeight } = scrollContainer.value
   shouldAutoScroll.value = scrollHeight - scrollTop - clientHeight < 80
+  updateStickyUser()
 }
 
 watch(() => streamItems.value.length, async () => {
-  if (!shouldAutoScroll.value) return
   await nextTick()
-  scrollContainer.value?.scrollTo({ top: scrollContainer.value.scrollHeight, behavior: 'smooth' })
+  if (shouldAutoScroll.value) {
+    scrollContainer.value?.scrollTo({ top: scrollContainer.value.scrollHeight, behavior: 'smooth' })
+  }
+  updateStickyUser()
 })
 
 onMounted(async () => {
   await nextTick()
   scrollContainer.value?.scrollTo({ top: scrollContainer.value!.scrollHeight })
+  updateStickyUser()
 })
 
-// Floating sticky for the last user message — shown only when the inline copy
-// scrolls above the viewport. IO watches the inline element; isIntersecting=false
-// reveals the sticky copy.
-const isLastUserVisible = ref(true)
-const lastUserEl = ref<HTMLElement | null>(null)
-let observer: IntersectionObserver | null = null
+// Floating sticky: show the most recent user message whose bottom has scrolled
+// above the top of the scroll container — i.e. the latest user message no
+// longer visible from the current scroll point upward.
+const userEls = new Map<string, HTMLElement>()
+const stickyUserItem = shallowRef<StreamItem | null>(null)
 
-function teardownObserver() {
-  observer?.disconnect()
-  observer = null
+function setUserRef(key: string, el: Element | null) {
+  if (el) userEls.set(key, el as HTMLElement)
+  else userEls.delete(key)
 }
 
-function setupObserver() {
-  teardownObserver()
-  if (!scrollContainer.value || !lastUserEl.value) return
-  observer = new IntersectionObserver(
-    ([entry]) => { isLastUserVisible.value = entry!.isIntersecting },
-    { root: scrollContainer.value, threshold: 0 },
-  )
-  observer.observe(lastUserEl.value)
+function updateStickyUser() {
+  if (!scrollContainer.value) { stickyUserItem.value = null; return }
+  const containerTop = scrollContainer.value.getBoundingClientRect().top
+  let latest: StreamItem | null = null
+  for (const item of streamItems.value) {
+    if (item.kind !== 'user') continue
+    const el = userEls.get(item.componentKey)
+    if (!el) continue
+    if (el.getBoundingClientRect().bottom <= containerTop) latest = item
+    else break
+  }
+  stickyUserItem.value = latest
 }
-
-watch(
-  () => lastUserMessage.value?.componentKey,
-  async (key) => {
-    if (!key) {
-      teardownObserver()
-      isLastUserVisible.value = true
-      return
-    }
-    await nextTick()
-    setupObserver()
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(teardownObserver)
-
-const showStickyUser = computed(() => !!lastUserMessage.value && !isLastUserVisible.value)
 </script>
 
 <template>
@@ -92,17 +76,17 @@ const showStickyUser = computed(() => !!lastUserMessage.value && !isLastUserVisi
     <ChatStickyRegion v-if="stickyItems.length" :items="stickyItems" :session-id="sessionId" />
 
     <div
-      v-if="showStickyUser && lastUserMessage"
+      v-if="stickyUserItem"
       class="sticky top-0 z-20 bg-default/90 backdrop-blur-sm border-b border-default"
     >
       <div class="max-w-4xl mx-auto px-2 py-1 max-h-24 overflow-y-auto">
         <component
-          :is="resolveChatComponent(lastUserMessage.kind)"
-          v-if="resolveChatComponent(lastUserMessage.kind)"
-          :component-key="`${lastUserMessage.componentKey}:sticky`"
-          :default-mode="lastUserMessage.defaultMode"
-          :data="lastUserMessage.data"
-          :status="lastUserMessage.status"
+          :is="resolveChatComponent(stickyUserItem.kind)"
+          v-if="resolveChatComponent(stickyUserItem.kind)"
+          :component-key="`${stickyUserItem.componentKey}:sticky`"
+          :default-mode="stickyUserItem.defaultMode"
+          :data="stickyUserItem.data"
+          :status="stickyUserItem.status"
           :sticky="true"
           :session-id="sessionId"
         />
@@ -118,8 +102,8 @@ const showStickyUser = computed(() => !!lastUserMessage.value && !isLastUserVisi
 
       <template v-for="item in streamItems" :key="item.componentKey">
         <div
-          v-if="item.componentKey === lastUserMessage?.componentKey"
-          ref="lastUserEl"
+          v-if="item.kind === 'user'"
+          :ref="el => setUserRef(item.componentKey, el as Element | null)"
         >
           <component
             :is="resolveChatComponent(item.kind)"

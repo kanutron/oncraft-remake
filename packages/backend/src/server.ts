@@ -5,6 +5,7 @@ import Fastify from "fastify";
 import { EventBus } from "./infra/event-bus";
 import { GitWatcher } from "./infra/git-watcher";
 import { Store } from "./infra/store";
+import { registerCapabilitiesRoutes } from "./routes/capabilities.routes";
 import { registerFilesystemRoutes } from "./routes/filesystem.routes";
 import { registerGitRoutes } from "./routes/git.routes";
 import { registerProjectRoutes } from "./routes/project.routes";
@@ -55,6 +56,7 @@ repositoryService.setSessionService(sessionService);
 
 // Routes
 app.get("/health", async () => ({ status: "ok" }));
+registerCapabilitiesRoutes(app);
 registerProjectRoutes(app, projectService);
 registerRepositoryRoutes(app, repositoryService);
 registerSessionRoutes(app, sessionService);

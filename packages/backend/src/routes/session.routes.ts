@@ -107,19 +107,49 @@ export function registerSessionRoutes(
 		}
 	});
 
+	app.patch("/sessions/:id/preferences", async (request, reply) => {
+		const { id } = request.params as { id: string };
+		const session = sessionService.get(id);
+		if (!session) {
+			return reply
+				.status(404)
+				.send({ error: "Session not found", code: "NOT_FOUND" });
+		}
+		const body = request.body as {
+			preferredModel?: string | null;
+			preferredEffort?: string | null;
+			preferredPermissionMode?: string | null;
+			thinkingMode?: "off" | "adaptive" | "fixed" | null;
+			thinkingBudget?: number | null;
+		};
+		sessionService.updatePreferences(id, body);
+		return sessionService.get(id);
+	});
+
 	app.post("/sessions/:id/send", async (request, reply) => {
 		const { id } = request.params as { id: string };
-		const { message, model, effort, permissionMode } = request.body as {
+		const {
+			message,
+			model,
+			effort,
+			permissionMode,
+			thinkingMode,
+			thinkingBudget,
+		} = request.body as {
 			message: string;
 			model?: string;
 			effort?: string;
 			permissionMode?: string;
+			thinkingMode?: "off" | "adaptive" | "fixed";
+			thinkingBudget?: number;
 		};
 		try {
 			await sessionService.send(id, message, {
 				model,
 				effort,
 				permissionMode,
+				thinkingMode,
+				thinkingBudget,
 			});
 			return reply.status(202).send({ sessionId: id });
 		} catch (err) {
