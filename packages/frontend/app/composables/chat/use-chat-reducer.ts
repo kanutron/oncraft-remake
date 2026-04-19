@@ -19,21 +19,12 @@ function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
   const blocks: Block[] = raw?.message?.content ?? []
   return blocks.map((block, i) => {
     const mapping = BLOCK_KIND_MAP[block.type]
-    if (!mapping) {
-      return {
-        componentKey: `${messageId}:${i}`,
-        kind: 'generic-system',
-        data: block,
-        defaultMode: 'badge',
-      }
-    }
+    const dataWithParent = { ...block, _parentMessageId: messageId }
     const componentKey = block.id ?? `${messageId}:${i}`
-    return {
-      componentKey,
-      kind: mapping.kind,
-      data: block,
-      defaultMode: mapping.defaultMode,
+    if (!mapping) {
+      return { componentKey, kind: 'generic-system' as const, data: dataWithParent, defaultMode: 'badge' as const }
     }
+    return { componentKey, kind: mapping.kind, data: dataWithParent, defaultMode: mapping.defaultMode }
   })
 }
 
@@ -103,6 +94,36 @@ function derive(messages: ChatMessage[]): Derived {
       continue
     }
   }
+
+  // Pass 3: streaming mutate — any stream_event with matching message.id marks the assistant stream as streaming.
+  const streamingMessageIds = new Set<string>()
+  for (const msg of messages) {
+    const raw = (msg.raw?.data ?? msg.raw) as any
+    if (raw?.type === 'stream_event') {
+      const id = raw?.message?.id
+      if (typeof id === 'string') streamingMessageIds.add(id)
+    }
+  }
+  // Also: if a result event appears, streaming is finalized.
+  const finalized = new Set<string>()
+  for (const msg of messages) {
+    const raw = (msg.raw?.data ?? msg.raw) as any
+    if (raw?.type === 'result') finalized.add('*')
+  }
+  for (const c of out) {
+    const messageId = (c.data as any)?._parentMessageId ?? (c.data as any)?.message?.id
+    if (messageId && streamingMessageIds.has(messageId) && !finalized.has('*')) {
+      if (c.kind === 'block-text' || c.kind === 'block-tool-use' || c.kind === 'block-thinking') {
+        c.status = c.status ?? 'streaming'
+      }
+    }
+  }
+
+  // Pass 4: sticky eligibility.
+  let lastUserIdx = -1
+  for (let i = 0; i < out.length; i++) if (out[i].kind === 'user') lastUserIdx = i
+  if (lastUserIdx !== -1 && lastUserIdx < out.length - 1) out[lastUserIdx].sticky = true
+  for (const c of out) if (c.kind === 'tool-confirmation') c.sticky = true
 
   return { components: out, sideChannel: side }
 }

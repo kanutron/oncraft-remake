@@ -132,3 +132,37 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
     expect(components.value[0].status).toBe('running')
   })
 })
+
+describe('useChatReducer — streaming and sticky', () => {
+  it('sets status=streaming on an assistant component that has a later stream_event with matching message.id', () => {
+    const src = ref([
+      makeMessage({ type: 'assistant', message: { id: 'msg_5', content: [{ type: 'text', text: 'par' }] } }),
+      makeMessage({ type: 'stream_event', message: { id: 'msg_5' }, delta: { type: 'text_delta', text: 'tial' } }),
+    ])
+    const { components } = useChatReducer(src)
+    const txt = components.value.find(c => c.kind === 'block-text')!
+    expect(txt.status).toBe('streaming')
+  })
+
+  it('marks the latest user message as sticky while any non-user components follow it', () => {
+    const src = ref([
+      makeMessage({ type: 'user', content: 'go' }),
+      makeMessage({ type: 'assistant', message: { id: 'm', content: [{ type: 'text', text: 'yes' }] } }),
+    ])
+    const { components } = useChatReducer(src)
+    const user = components.value.find(c => c.kind === 'user')!
+    expect(user.sticky).toBe(true)
+  })
+
+  it('does not mark the user message as sticky if it is the last component', () => {
+    const src = ref([makeMessage({ type: 'user', content: 'hi' })])
+    const { components } = useChatReducer(src)
+    expect(components.value[0].sticky).toBeUndefined()
+  })
+
+  it('marks active tool-confirmation as sticky', () => {
+    const src = ref([makeMessage({ event: 'session:tool-confirmation', type: 'tool_confirmation', tool: 'Bash' })])
+    const { components } = useChatReducer(src)
+    expect(components.value[0].sticky).toBe(true)
+  })
+})
