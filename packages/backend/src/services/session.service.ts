@@ -144,6 +144,11 @@ export class SessionService {
 			costUsd: 0,
 			inputTokens: 0,
 			outputTokens: 0,
+			preferredModel: null,
+			preferredEffort: null,
+			preferredPermissionMode: null,
+			thinkingMode: null,
+			thinkingBudget: null,
 		};
 
 		this.store.createSession(session);
