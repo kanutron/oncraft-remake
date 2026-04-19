@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { ComputedRef } from 'vue'
 import type { RenderMode } from '~/types/chat'
+import type { SubagentEntry } from '~/stores/session.store'
 import { toolIcon } from '~/composables/chat/tool-icon'
+import ChatSubagentTranscript from '~/components/chat/ChatSubagentTranscript.vue'
 
 const props = defineProps<{
   componentKey: string
   defaultMode: RenderMode
   status?: 'streaming' | 'running' | 'success' | 'error' | 'cancelled'
+  sessionId?: string
   data: {
     type: 'tool_use'
     id: string
@@ -35,6 +39,12 @@ const outputText = computed(() => {
 
 const isError = computed(() => props.status === 'error')
 const isStreaming = computed(() => props.status === 'streaming' || props.status === 'running')
+
+const subagentMap = inject<ComputedRef<Map<string, SubagentEntry>> | null>('chat:subagent-map', null)
+const subagent = computed<SubagentEntry | null>(() => {
+  if (props.data.name !== 'Agent') return null
+  return subagentMap?.value?.get(props.data.id) ?? null
+})
 </script>
 
 <template>
@@ -86,6 +96,14 @@ const isStreaming = computed(() => props.status === 'streaming' || props.status 
         <div class="space-y-2" @click.stop>
           <pre class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ JSON.stringify(data.input, null, 2) }}</pre>
           <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
+          <ChatSubagentTranscript
+            v-if="subagent && sessionId"
+            :agent-id="subagent.agentId"
+            :agent-type="subagent.agentType"
+            :description="subagent.description"
+            :messages="subagent.messages"
+            :session-id="sessionId"
+          />
         </div>
       </UChatTool>
     </template>

@@ -1,11 +1,20 @@
 import type { Session, SessionState, ChatMessage } from '~/types'
 
+export interface SubagentEntry {
+  agentId: string
+  agentType?: string
+  description?: string
+  messages: Record<string, unknown>[]
+}
+
 export const useSessionStore = defineStore('session', () => {
   const config = useRuntimeConfig()
   const sessions = ref<Map<string, Session>>(new Map())
   const messages = ref<Map<string, ChatMessage[]>>(new Map())
   const activeSessionByRepository = ref<Map<string, string>>(new Map())
   const hydratedSessions = ref<Set<string>>(new Set())
+  const hydratedSubagents = ref<Set<string>>(new Set())
+  const subagentsBySession = ref<Map<string, SubagentEntry[]>>(new Map())
 
   function activeSessionId(repositoryId: string): string | null {
     return activeSessionByRepository.value.get(repositoryId) ?? null
@@ -59,6 +68,7 @@ export const useSessionStore = defineStore('session', () => {
   function setActive(repositoryId: string, sessionId: string) {
     activeSessionByRepository.value.set(repositoryId, sessionId)
     void hydrate(sessionId)
+    void hydrateSubagents(sessionId)
   }
 
   async function hydrate(sessionId: string) {
@@ -75,6 +85,28 @@ export const useSessionStore = defineStore('session', () => {
     catch {
       hydratedSessions.value.delete(sessionId)
     }
+  }
+
+  async function hydrateSubagents(sessionId: string) {
+    if (hydratedSubagents.value.has(sessionId)) return
+    const session = sessions.value.get(sessionId)
+    if (!session?.claudeSessionId) return
+
+    hydratedSubagents.value.add(sessionId)
+    try {
+      await $fetch(`${config.public.backendUrl}/sessions/${sessionId}/subagents`)
+    }
+    catch {
+      hydratedSubagents.value.delete(sessionId)
+    }
+  }
+
+  function setSubagents(sessionId: string, entries: SubagentEntry[]) {
+    subagentsBySession.value.set(sessionId, entries)
+  }
+
+  function subagentsForSession(sessionId: string): SubagentEntry[] {
+    return subagentsBySession.value.get(sessionId) ?? []
   }
 
   function appendHistoryMessages(sessionId: string, rawMessages: Record<string, unknown>[]) {
@@ -125,6 +157,8 @@ export const useSessionStore = defineStore('session', () => {
   function removeSession(sessionId: string, repositoryId: string) {
     sessions.value.delete(sessionId)
     messages.value.delete(sessionId)
+    subagentsBySession.value.delete(sessionId)
+    hydratedSubagents.value.delete(sessionId)
 
     // If deleted session was active, switch to another
     if (activeSessionByRepository.value.get(repositoryId) === sessionId) {
@@ -140,8 +174,11 @@ export const useSessionStore = defineStore('session', () => {
 
   return {
     sessions, messages, activeSessionByRepository, hydratedSessions,
+    hydratedSubagents, subagentsBySession,
     activeSessionId, sessionsForRepository, messagesForSession,
+    subagentsForSession,
     fetchForRepository, create, send, reply, interrupt, setActive, hydrate,
+    hydrateSubagents, setSubagents,
     appendMessage, appendHistoryMessages, updateState, destroy, removeSession,
   }
 })

@@ -43,6 +43,15 @@ export function useWebSocket() {
             const list = (msg.messages ?? []) as Record<string, unknown>[]
             sessionStore.appendHistoryMessages(sessionId, list)
           }
+          else if (msg.type === 'bridge:subagents') {
+            const entries = (msg.entries ?? []) as {
+              agentId: string
+              agentType?: string
+              description?: string
+              messages: Record<string, unknown>[]
+            }[]
+            sessionStore.setSubagents(sessionId, entries)
+          }
           else {
             sessionStore.appendMessage(sessionId, msg)
           }

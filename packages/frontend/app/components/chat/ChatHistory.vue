@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { resolveChatComponent } from '~/composables/chat/resolve-component'
+import { useSubagentCorrelation } from '~/composables/chat/use-subagent-correlation'
 
 const props = defineProps<{ sessionId: string }>()
 
@@ -9,6 +10,10 @@ const messages = computed(() => sessionStore.messagesForSession(props.sessionId)
 const { components, sideChannel } = useChatReducer(messages)
 
 provide('chat:side-channel', sideChannel)
+
+const sessionIdRef = computed(() => props.sessionId)
+const subagentMap = useSubagentCorrelation(sessionIdRef)
+provide('chat:subagent-map', subagentMap)
 
 const stickyItems = computed(() => components.value.filter(c => c.sticky))
 const streamItems = computed(() => components.value.filter(c => !c.sticky))
