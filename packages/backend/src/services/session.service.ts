@@ -224,13 +224,17 @@ export class SessionService {
 			opts.thinkingBudget !== undefined;
 
 		if (hasPrefsInBody) {
-			this.store.updateSessionPreferences(sessionId, {
-				preferredModel: opts.model ?? null,
-				preferredEffort: opts.effort ?? null,
-				preferredPermissionMode: opts.permissionMode ?? null,
-				thinkingMode: opts.thinkingMode ?? null,
-				thinkingBudget: opts.thinkingBudget ?? null,
-			});
+			const prefs: Parameters<typeof this.store.updateSessionPreferences>[1] =
+				{};
+			if (opts.model !== undefined) prefs.preferredModel = opts.model;
+			if (opts.effort !== undefined) prefs.preferredEffort = opts.effort;
+			if (opts.permissionMode !== undefined)
+				prefs.preferredPermissionMode = opts.permissionMode;
+			if (opts.thinkingMode !== undefined)
+				prefs.thinkingMode = opts.thinkingMode;
+			if (opts.thinkingBudget !== undefined)
+				prefs.thinkingBudget = opts.thinkingBudget;
+			this.store.updateSessionPreferences(sessionId, prefs);
 		}
 
 		this.processManager.send(sessionId, {

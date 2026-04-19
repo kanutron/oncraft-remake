@@ -340,4 +340,29 @@ describe("send() — preferences", () => {
 		const last = processManager.sent.at(-1);
 		expect(last).toMatchObject({ model: "haiku", effort: "low" });
 	});
+
+	test("partial prefs in body only update the supplied fields (no null-clobber)", async () => {
+		const { service, store, repoId } = makeFixture();
+		const session = await service.create(repoId, {
+			name: "t",
+			sourceBranch: "main",
+		});
+		// Seed all five fields
+		store.updateSessionPreferences(session.id, {
+			preferredModel: "sonnet",
+			preferredEffort: "high",
+			preferredPermissionMode: "acceptEdits",
+			thinkingMode: "adaptive",
+			thinkingBudget: 6000,
+		});
+		// Send with ONLY model — must not touch the other four
+		await service.send(session.id, "hi", { model: "opus" });
+		const stored = store.getSession(session.id);
+		expect(stored).not.toBeNull();
+		expect(stored?.preferredModel).toBe("opus");
+		expect(stored?.preferredEffort).toBe("high");
+		expect(stored?.preferredPermissionMode).toBe("acceptEdits");
+		expect(stored?.thinkingMode).toBe("adaptive");
+		expect(stored?.thinkingBudget).toBe(6000);
+	});
 });
