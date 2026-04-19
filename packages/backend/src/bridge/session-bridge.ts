@@ -265,7 +265,7 @@ async function handleLoadSubagents(cmd: LoadSubagentsCommand): Promise<void> {
 			entries.push({ agentId, agentType, description, messages });
 		}
 
-		emit({ type: "bridge:subagents", sessionId: cmd.sessionId, entries });
+		emit({ type: "bridge:subagents", entries });
 	} catch (err) {
 		emit({
 			type: "bridge:error",

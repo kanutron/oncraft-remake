@@ -75,10 +75,20 @@ const subagent = computed<SubagentEntry | null>(() => {
         :suffix="inputSummary.slice(0, 80)"
         :streaming="isStreaming"
         :loading="isStreaming"
-        :defaultOpen="false"
+        :defaultOpen="true"
         @update:open="cycleMode()"
       >
-        <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap" @click.stop>{{ outputText }}</pre>
+        <div class="space-y-2" @click.stop>
+          <pre v-if="data.tool_result" class="text-xs font-mono bg-neutral-100 dark:bg-neutral-900 rounded p-2 whitespace-pre-wrap">{{ outputText }}</pre>
+          <ChatSubagentTranscript
+            v-if="subagent && sessionId"
+            :agent-id="subagent.agentId"
+            :agent-type="subagent.agentType"
+            :description="subagent.description"
+            :messages="subagent.messages"
+            :session-id="sessionId"
+          />
+        </div>
       </UChatTool>
     </template>
 
