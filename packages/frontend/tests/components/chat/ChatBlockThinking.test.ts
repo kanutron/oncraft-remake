@@ -15,4 +15,17 @@ describe('ChatBlockThinking', () => {
     const w = await mountSuspended(ChatBlockThinking, { props: { ...baseProps, defaultMode: 'badge' } })
     expect(w.attributes('data-mode')).toBe('badge')
   })
+
+  it('forces badge rendering for signed-but-empty thinking (replay from history)', async () => {
+    const w = await mountSuspended(ChatBlockThinking, {
+      props: {
+        componentKey: 'k2',
+        defaultMode: 'full',
+        data: { type: 'thinking', thinking: '', signature: 'sig-xyz' },
+      },
+    })
+    expect(w.attributes('data-mode')).toBe('badge')
+    expect(w.text()).toContain('thinking (signed)')
+    expect(w.findComponent({ name: 'UChatReasoning' }).exists()).toBe(false)
+  })
 })

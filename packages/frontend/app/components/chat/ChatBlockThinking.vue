@@ -4,21 +4,28 @@ import type { RenderMode } from '~/types/chat'
 const props = defineProps<{
   componentKey: string
   defaultMode: RenderMode
-  data: { type: 'thinking'; thinking?: string }
+  data: { type: 'thinking'; thinking?: string; signature?: string }
 }>()
 
 const { useRenderMode } = useChatRenderMode()
 const { mode, setMode } = useRenderMode(props.componentKey, props.defaultMode)
 
 const thinking = computed(() => props.data.thinking ?? '')
+const isSigned = computed(() => !thinking.value && !!props.data.signature)
 </script>
 
 <template>
   <div
-    :data-mode="mode"
-    :class="mode === 'badge' ? 'inline-flex items-center align-middle' : 'block my-1'"
+    :data-mode="isSigned ? 'badge' : mode"
+    :class="isSigned || mode === 'badge' ? 'inline-flex items-center align-middle' : 'block my-1'"
   >
-    <template v-if="mode === 'badge'">
+    <template v-if="isSigned">
+      <UBadge color="neutral" variant="subtle" size="sm">
+        <UIcon name="i-lucide-brain" class="size-3" />
+        <span class="text-xs">thinking (signed)</span>
+      </UBadge>
+    </template>
+    <template v-else-if="mode === 'badge'">
       <UBadge color="primary" variant="subtle" size="sm" class="cursor-pointer" @click="setMode('compact')">
         <UIcon name="i-lucide-brain" class="size-3" />
         <span class="text-xs">thinking</span>
