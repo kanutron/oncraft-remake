@@ -34,6 +34,7 @@ Autonomous procedures agents can invoke or be directed to run. Located in `.cont
 | Operation | What it does |
 |---|---|
 | [live-debug](.context/agents/operation/live-debug.md) | Launch full stack, observe via logs + Playwright browser, interact with UI, tear down cleanly |
+| [sdk-sync](.context/agents/operation/sdk-sync.md) | Keep the chat event registry in sync with `@anthropic-ai/claude-agent-sdk` versions |
 
 ## Constraints
 
