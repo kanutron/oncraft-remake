@@ -21,6 +21,8 @@ import ChatUserReplay from '~/components/chat/ChatUserReplay.vue'
 import ChatMemoryRecall from '~/components/chat/ChatMemoryRecall.vue'
 import ChatElicitationComplete from '~/components/chat/ChatElicitationComplete.vue'
 import ChatGenericSystemEvent from '~/components/chat/ChatGenericSystemEvent.vue'
+import ChatBlockImage from '~/components/chat/ChatBlockImage.vue'
+import ChatBlockRedactedThinking from '~/components/chat/ChatBlockRedactedThinking.vue'
 
 const MAP: Partial<Record<ChatEventKind, Component>> = {
   'assistant-header': ChatAssistantHeader,
@@ -43,6 +45,8 @@ const MAP: Partial<Record<ChatEventKind, Component>> = {
   'memory-recall': ChatMemoryRecall,
   'elicitation-complete': ChatElicitationComplete,
   'generic-system': ChatGenericSystemEvent,
+  'block-image': ChatBlockImage,
+  'block-redacted-thinking': ChatBlockRedactedThinking,
 }
 
 export function resolveChatComponent(kind: ChatEventKind): Component | null {
