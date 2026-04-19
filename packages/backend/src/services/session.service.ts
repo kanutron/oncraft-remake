@@ -24,6 +24,9 @@ interface SendOptions {
 	model?: string;
 	effort?: string;
 	permissionMode?: string;
+	thinkingMode?: "off" | "adaptive" | "fixed";
+	thinkingBudget?: number;
+	fallbackModel?: string;
 }
 
 export class SessionService {
@@ -200,14 +203,39 @@ export class SessionService {
 
 		this.setState(sessionId, "active");
 
+		const hasPrefsInBody =
+			opts.model !== undefined ||
+			opts.effort !== undefined ||
+			opts.permissionMode !== undefined ||
+			opts.thinkingMode !== undefined ||
+			opts.thinkingBudget !== undefined;
+
+		if (hasPrefsInBody) {
+			this.store.updateSessionPreferences(sessionId, {
+				preferredModel: opts.model ?? null,
+				preferredEffort: opts.effort ?? null,
+				preferredPermissionMode: opts.permissionMode ?? null,
+				thinkingMode: opts.thinkingMode ?? null,
+				thinkingBudget: opts.thinkingBudget ?? null,
+			});
+		}
+
+		// Re-fetch to get any prefs we just persisted (session is guaranteed to
+		// exist here — we threw above if it was missing).
+		const stored = this.store.getSession(sessionId) ?? session;
+
 		this.processManager.send(sessionId, {
 			cmd: "start",
 			projectPath: cwd,
 			prompt: message,
 			sessionId: session.claudeSessionId ?? undefined,
-			model: opts.model,
-			effort: opts.effort,
-			permissionMode: opts.permissionMode,
+			model: opts.model ?? stored.preferredModel ?? undefined,
+			effort: opts.effort ?? stored.preferredEffort ?? undefined,
+			permissionMode:
+				opts.permissionMode ?? stored.preferredPermissionMode ?? undefined,
+			thinkingMode: opts.thinkingMode ?? stored.thinkingMode ?? undefined,
+			thinkingBudget: opts.thinkingBudget ?? stored.thinkingBudget ?? undefined,
+			fallbackModel: opts.fallbackModel,
 		});
 
 		this.eventBus.emit(cwd, "session:message", {

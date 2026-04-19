@@ -11,6 +11,24 @@ import {
 import { makeRepository } from "../helpers/fixtures";
 import { createTestRepo } from "../helpers/test-repo";
 
+// ---------------------------------------------------------------------------
+// Stub ProcessManager — used only in the preferences describe block below.
+// The real ProcessManager spawns a bridge subprocess; this stub records calls.
+// ---------------------------------------------------------------------------
+class StubProcessManager extends ProcessManager {
+	sent: Record<string, unknown>[] = [];
+
+	override async spawn(_sessionId: string, _cwd: string): Promise<void> {}
+	override async waitForReady(_sessionId: string): Promise<void> {}
+	override isAlive(_sessionId: string): boolean {
+		return true;
+	}
+	override send(_sessionId: string, command: Record<string, unknown>): void {
+		this.sent.push(command);
+	}
+	override async stopAll(): Promise<void> {}
+}
+
 const DB_PATH = "/tmp/oncraft-session-test.db";
 let service: SessionService;
 let store: Store;
@@ -237,5 +255,87 @@ describe("SessionService", () => {
 		// Should succeed — no worktree means no dirty-state check
 		await service.destroy(session.id);
 		expect(service.get(session.id)).toBeNull();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// send() — preferences roundtrip tests
+// Uses StubProcessManager to avoid spawning a real bridge subprocess.
+// ---------------------------------------------------------------------------
+
+const PREFS_DB_PATH = "/tmp/oncraft-session-prefs-test.db";
+
+describe("send() — preferences", () => {
+	function makeFixture() {
+		const store = new Store(PREFS_DB_PATH);
+		const eventBus = new EventBus();
+		const gitService = new GitService();
+		const processManager = new StubProcessManager(eventBus);
+		const service = new SessionService(
+			store,
+			eventBus,
+			gitService,
+			processManager,
+		);
+
+		const repoId = "repo-prefs-1";
+		store.createRepository(
+			makeRepository({ id: repoId, path: "/tmp/prefs-fake-repo" }),
+		);
+
+		return { service, store, processManager, repoId };
+	}
+
+	afterEach(() => {
+		for (const suffix of ["", "-wal", "-shm"]) {
+			try {
+				unlinkSync(`${PREFS_DB_PATH}${suffix}`);
+			} catch {}
+		}
+	});
+
+	test("persists prefs in body before forwarding to the bridge", async () => {
+		const { service, store, processManager, repoId } = makeFixture();
+		const session = await service.create(repoId, {
+			name: "t",
+			sourceBranch: "main",
+		});
+		await service.send(session.id, "hi", {
+			model: "opus",
+			effort: "xhigh",
+			permissionMode: "plan",
+			thinkingMode: "fixed",
+			thinkingBudget: 12000,
+		});
+		const stored = store.getSession(session.id);
+		expect(stored?.preferredModel).toBe("opus");
+		expect(stored?.preferredEffort).toBe("xhigh");
+		expect(stored?.preferredPermissionMode).toBe("plan");
+		expect(stored?.thinkingMode).toBe("fixed");
+		expect(stored?.thinkingBudget).toBe(12000);
+		const last = processManager.sent.at(-1);
+		expect(last).toMatchObject({
+			cmd: "start",
+			model: "opus",
+			effort: "xhigh",
+			permissionMode: "plan",
+			thinkingMode: "fixed",
+			thinkingBudget: 12000,
+		});
+	});
+
+	test("falls back to stored prefs when body is empty", async () => {
+		const { service, store, processManager, repoId } = makeFixture();
+		const session = await service.create(repoId, {
+			name: "t",
+			sourceBranch: "main",
+		});
+		store.updateSessionPreferences(session.id, {
+			preferredModel: "haiku",
+			preferredEffort: "low",
+		});
+		await service.send(session.id, "hi", {});
+		const last = processManager.sent.at(-1);
+		expect(last).toMatchObject({ model: "haiku", effort: "low" });
 	});
 });
