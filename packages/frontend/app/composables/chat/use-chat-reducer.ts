@@ -14,7 +14,20 @@ const BLOCK_KIND_MAP: Record<string, { kind: ChatEventKind; defaultMode: 'badge'
   redacted_thinking: { kind: 'block-redacted-thinking', defaultMode: 'badge' },
 }
 
-function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
+const ASSISTANT_CHAIN_KINDS: ReadonlySet<ChatEventKind> = new Set<ChatEventKind>([
+  'assistant-header',
+  'block-text',
+  'block-thinking',
+  'block-tool-use',
+  'block-image',
+  'block-redacted-thinking',
+])
+
+function fanOutAssistant(
+  msg: ChatMessage,
+  raw: any,
+  opts: { isContinuation?: boolean } = {},
+): ChatStreamComponent[] {
   const messageId = raw?.message?.id ?? msg.id
   const blocks: Block[] = raw?.message?.content ?? []
   const header: ChatStreamComponent = {
@@ -32,16 +45,11 @@ function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
     }
     return { componentKey, kind: mapping.kind, data: dataWithParent, defaultMode: mapping.defaultMode }
   })
-  // Skip the header for turns with no narrative — tool-only or signed-empty-thinking
-  // messages produce inline badges that flow consecutively when uninterrupted by
-  // a block-level header.
-  const hasNarrative = blocks.some((b) => {
-    if (b.type === 'text') return !!(b.text ?? '').trim()
-    if (b.type === 'thinking') return !!(b.thinking ?? '').trim()
-    if (b.type === 'redacted_thinking') return true
-    return false
-  })
-  return hasNarrative ? [header, ...blockComps] : blockComps
+  // One header per assistant "run": emit on the first turn of a run (not a
+  // continuation of a previous assistant chain), skip on every subsequent
+  // turn in that run. Keeps consecutive tool-only badges flowing inline while
+  // still introducing the run the first time it starts.
+  return opts.isContinuation ? blockComps : [header, ...blockComps]
 }
 
 export function useChatReducer(source: Ref<ChatMessage[]>) {
@@ -95,7 +103,9 @@ function derive(messages: ChatMessage[]): Derived {
     }
 
     if (relationship === 'fan-out') {
-      const fanned = fanOutAssistant(msg, raw)
+      const prev = out[out.length - 1]
+      const isContinuation = !!prev && ASSISTANT_CHAIN_KINDS.has(prev.kind)
+      const fanned = fanOutAssistant(msg, raw, { isContinuation })
       for (const c of fanned) {
         if (c.kind === 'block-tool-use') {
           const block = c.data as any
