@@ -512,6 +512,32 @@ describe('useSessionStore', () => {
     })
   })
 
+  /* ── updatePreferences ─────────────────────────────────────────── */
+
+  describe('updatePreferences()', () => {
+    it('PATCHes /sessions/:id/preferences and merges result into store', async () => {
+      const sessionId = 'sess-1'
+      const initial = makeSession({ id: sessionId, preferredModel: null, thinkingMode: null })
+      const updated = { ...initial, preferredModel: 'opus', thinkingMode: 'adaptive' as const }
+      const fetchMock = vi.fn().mockResolvedValueOnce(updated)
+      vi.stubGlobal('$fetch', fetchMock)
+
+      const store = useSessionStore()
+      store.sessions.set(sessionId, initial)
+      await store.updatePreferences(sessionId, { preferredModel: 'opus', thinkingMode: 'adaptive' })
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/sessions/${sessionId}/preferences`),
+        expect.objectContaining({
+          method: 'PATCH',
+          body: { preferredModel: 'opus', thinkingMode: 'adaptive' },
+        }),
+      )
+      expect(store.sessions.get(sessionId)?.preferredModel).toBe('opus')
+      expect(store.sessions.get(sessionId)?.thinkingMode).toBe('adaptive')
+    })
+  })
+
   /* ── removeSession ──────────────────────────────────────────────── */
 
   describe('removeSession()', () => {
