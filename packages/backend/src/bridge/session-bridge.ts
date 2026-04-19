@@ -54,10 +54,22 @@ type BridgeCommand =
 // --- State ---
 
 let activeAbort: AbortController | null = null;
-const pendingApprovals = new Map<
-	string,
-	(result: { behavior: "allow" | "deny" }) => void
->();
+
+// Shape of the resolved value matches the SDK's `PermissionResult`:
+//   allow → { behavior: 'allow', updatedInput }   (updatedInput defaults to original toolInput)
+//   deny  → { behavior: 'deny',  message }
+// Returning just `{ behavior }` fails Zod validation inside the SDK (seen as
+// "Invalid input: expected string, received undefined" on `message`).
+type PermissionResult =
+	| { behavior: "allow"; updatedInput: Record<string, unknown> }
+	| { behavior: "deny"; message: string };
+
+interface PendingApproval {
+	resolve: (result: PermissionResult) => void;
+	toolInput: Record<string, unknown>;
+}
+
+const pendingApprovals = new Map<string, PendingApproval>();
 
 // --- Helpers ---
 
@@ -142,7 +154,7 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 		permissionMode: cmd.permissionMode,
 		canUseTool: async (
 			toolName: string,
-			toolInput: unknown,
+			toolInput: Record<string, unknown>,
 			toolOptions: {
 				toolUseID: string;
 				agentID?: string;
@@ -158,8 +170,8 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 				agentID: toolOptions.agentID,
 				decisionReason: toolOptions.decisionReason,
 			});
-			return new Promise<{ behavior: "allow" | "deny" }>((resolve) => {
-				pendingApprovals.set(toolUseID, resolve);
+			return new Promise<PermissionResult>((resolve) => {
+				pendingApprovals.set(toolUseID, { resolve, toolInput });
 			});
 		},
 	};
@@ -188,10 +200,13 @@ async function handleStart(cmd: StartCommand): Promise<void> {
 }
 
 function handleReply(cmd: ReplyCommand): void {
-	const resolve = pendingApprovals.get(cmd.toolUseID);
-	if (resolve) {
-		resolve({ behavior: cmd.decision });
-		pendingApprovals.delete(cmd.toolUseID);
+	const pending = pendingApprovals.get(cmd.toolUseID);
+	if (!pending) return;
+	pendingApprovals.delete(cmd.toolUseID);
+	if (cmd.decision === "allow") {
+		pending.resolve({ behavior: "allow", updatedInput: pending.toolInput });
+	} else {
+		pending.resolve({ behavior: "deny", message: "Denied by user." });
 	}
 }
 

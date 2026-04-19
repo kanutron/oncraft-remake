@@ -67,7 +67,12 @@ interface Derived {
 function derive(messages: ChatMessage[]): Derived {
   const out: ChatStreamComponent[] = []
   const side: ChatSideChannelEvent[] = []
-  // Pass 1: walk events, track tool_results to fold in.
+  // Pass 1: walk events, track tool_results to fold in. `tool_confirmation` is a
+  // live-only bridge event; suppress it only once a `tool_result` for the same
+  // id has arrived (the tool actually ran — decision resolved). Using the
+  // assistant's `tool_use` block would be wrong: the SDK emits the `tool_use`
+  // BEFORE invoking `canUseTool`, so filtering on it hides the banner we need
+  // to show.
   const toolResults = new Map<string, { content: unknown; is_error: boolean }>()
   const userMessagesWithOnlyToolResults = new Set<string>()
 
@@ -96,6 +101,11 @@ function derive(messages: ChatMessage[]): Derived {
     if (relationship === 'side-channel') { side.push({ kind, data: raw }); continue }
 
     if (relationship === 'spawn') {
+      // Suppress tool_confirmation once the tool has actually run (tool_result
+      // present) — by that point the tool_use card carries the outcome, and
+      // re-showing the approval banner is noise.
+      if (kind === 'tool-confirmation' && typeof raw?.toolUseID === 'string'
+        && toolResults.has(raw.toolUseID)) continue
       const needsCorr = kind === 'hook-entry' || kind === 'task-entry'
       const corr = descriptor.correlationKey?.(raw)
       const componentKey = needsCorr && corr ? corr : msg.id
