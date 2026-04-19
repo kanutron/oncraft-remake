@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RenderMode } from '~/types/chat'
+import RichMarkdown from '~/components/chat/RichMarkdown.vue'
 
 const props = defineProps<{
   componentKey: string
@@ -31,7 +32,9 @@ const text = computed(() => props.data.text ?? '')
       </div>
     </template>
     <template v-else>
-      <div class="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap cursor-pointer" @click="cycleMode()">{{ text }}</div>
+      <div class="cursor-pointer" @click="cycleMode()">
+        <RichMarkdown :source="text" />
+      </div>
     </template>
   </div>
 </template>
