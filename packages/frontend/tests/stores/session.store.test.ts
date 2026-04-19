@@ -166,6 +166,20 @@ describe('useSessionStore', () => {
       expect(store.messagesForSession('sess-1')[0].raw).toEqual({ text: 'a' })
       expect(store.messagesForSession('sess-2')[0].raw).toEqual({ text: 'b' })
     })
+
+    it('indexes messages with parent_tool_use_id by that tool_use id', () => {
+      const store = useSessionStore()
+      const evt = { type: 'assistant', parent_tool_use_id: 'tu_parent', message: { id: 'm', content: [] } }
+      store.appendMessage('sess-1', evt)
+      expect(store.liveSubagentMessagesFor('tu_parent')).toHaveLength(1)
+      expect(store.liveSubagentMessagesFor('tu_parent')[0]).toEqual(evt)
+    })
+
+    it('does not index messages without parent_tool_use_id', () => {
+      const store = useSessionStore()
+      store.appendMessage('sess-1', { type: 'assistant', message: { id: 'm', content: [] } })
+      expect(store.liveSubagentMessagesFor('tu_parent')).toHaveLength(0)
+    })
   })
 
   /* ── updateState ───────────────────────────────────────────────── */

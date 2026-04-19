@@ -15,6 +15,10 @@ export const useSessionStore = defineStore('session', () => {
   const hydratedSessions = ref<Set<string>>(new Set())
   const hydratedSubagents = ref<Set<string>>(new Set())
   const subagentsBySession = ref<Map<string, SubagentEntry[]>>(new Map())
+  // Live SDK events that carry parent_tool_use_id, indexed by that id so the
+  // parent Agent tool_use can render the subagent transcript in real time
+  // without waiting for hydration from the .jsonl transcript on disk.
+  const liveSubagentsByToolUseId = ref<Map<string, Record<string, unknown>[]>>(new Map())
 
   function activeSessionId(repositoryId: string): string | null {
     return activeSessionByRepository.value.get(repositoryId) ?? null
@@ -125,6 +129,18 @@ export const useSessionStore = defineStore('session', () => {
       timestamp: new Date().toISOString(),
       raw,
     })
+
+    const parentId = (raw as { parent_tool_use_id?: unknown }).parent_tool_use_id
+    if (typeof parentId === 'string' && parentId) {
+      if (!liveSubagentsByToolUseId.value.has(parentId)) {
+        liveSubagentsByToolUseId.value.set(parentId, [])
+      }
+      liveSubagentsByToolUseId.value.get(parentId)!.push(raw)
+    }
+  }
+
+  function liveSubagentMessagesFor(toolUseId: string): Record<string, unknown>[] {
+    return liveSubagentsByToolUseId.value.get(toolUseId) ?? []
   }
 
   function updateState(sessionId: string, state: SessionState) {
@@ -159,6 +175,9 @@ export const useSessionStore = defineStore('session', () => {
     messages.value.delete(sessionId)
     subagentsBySession.value.delete(sessionId)
     hydratedSubagents.value.delete(sessionId)
+    // Live subagent entries are not session-keyed, but a deleted session
+    // can't reference them anyway; leaving them is a minor leak that
+    // clears on reload. Skipping surgical cleanup to avoid walking.
 
     // If deleted session was active, switch to another
     if (activeSessionByRepository.value.get(repositoryId) === sessionId) {
@@ -174,9 +193,9 @@ export const useSessionStore = defineStore('session', () => {
 
   return {
     sessions, messages, activeSessionByRepository, hydratedSessions,
-    hydratedSubagents, subagentsBySession,
+    hydratedSubagents, subagentsBySession, liveSubagentsByToolUseId,
     activeSessionId, sessionsForRepository, messagesForSession,
-    subagentsForSession,
+    subagentsForSession, liveSubagentMessagesFor,
     fetchForRepository, create, send, reply, interrupt, setActive, hydrate,
     hydrateSubagents, setSubagents,
     appendMessage, appendHistoryMessages, updateState, destroy, removeSession,
