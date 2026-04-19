@@ -85,3 +85,50 @@ describe('useChatReducer — fan-out', () => {
     expect(components.value.map(c => c.defaultMode)).toEqual(['full', 'compact', 'badge'])
   })
 })
+
+describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
+  it('attaches a tool_result to its paired tool_use by tool_use_id', () => {
+    const src = ref([
+      makeMessage({
+        type: 'assistant',
+        message: { id: 'm1', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { cmd: 'ls' } }] },
+      }),
+      makeMessage({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'output', is_error: false }] },
+      }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value).toHaveLength(1) // user message with only tool_result is not a separate spawn
+    const tool = components.value[0]
+    expect(tool.kind).toBe('block-tool-use')
+    expect((tool.data as any).tool_result).toMatchObject({ content: 'output', is_error: false })
+    expect(tool.status).toBe('success')
+  })
+
+  it('sets status=error when the paired tool_result is is_error', () => {
+    const src = ref([
+      makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't2', name: 'Bash', input: {} }] } }),
+      makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'boom', is_error: true }] } }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value[0].status).toBe('error')
+  })
+
+  it('flips defaultMode from badge to compact for failed tools', () => {
+    const src = ref([
+      makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't3', name: 'Edit', input: {} }] } }),
+      makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't3', content: 'x', is_error: true }] } }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value[0].defaultMode).toBe('compact')
+  })
+
+  it('tool_use without result shows status=running', () => {
+    const src = ref([
+      makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't4', name: 'Read', input: {} }] } }),
+    ])
+    const { components } = useChatReducer(src)
+    expect(components.value[0].status).toBe('running')
+  })
+})

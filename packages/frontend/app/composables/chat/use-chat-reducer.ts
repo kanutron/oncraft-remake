@@ -52,34 +52,56 @@ interface Derived {
 function derive(messages: ChatMessage[]): Derived {
   const out: ChatStreamComponent[] = []
   const side: ChatSideChannelEvent[] = []
+  // Pass 1: walk events, track tool_results to fold in.
+  const toolResults = new Map<string, { content: unknown; is_error: boolean }>()
+  const userMessagesWithOnlyToolResults = new Set<string>()
 
   for (const msg of messages) {
-    const raw = (msg.raw?.data ?? msg.raw) as unknown
+    const raw = (msg.raw?.data ?? msg.raw) as any
+    if (raw?.type === 'user') {
+      const content = raw?.message?.content
+      if (Array.isArray(content) && content.every((b: any) => b?.type === 'tool_result')) {
+        for (const b of content) {
+          toolResults.set(b.tool_use_id, { content: b.content, is_error: !!b.is_error })
+        }
+        userMessagesWithOnlyToolResults.add(msg.id)
+      }
+    }
+  }
+
+  // Pass 2: build components.
+  for (const msg of messages) {
+    const raw = (msg.raw?.data ?? msg.raw) as any
     const { relationship, descriptor, kind } = classifyEvent(raw)
 
     if (relationship === 'discard' || !descriptor) continue
+    if (userMessagesWithOnlyToolResults.has(msg.id)) continue // folded into tool_use components
 
-    if (relationship === 'side-channel') {
-      side.push({ kind, data: raw })
-      continue
-    }
+    if (relationship === 'side-channel') { side.push({ kind, data: raw }); continue }
 
     if (relationship === 'spawn') {
-      out.push({
-        componentKey: msg.id,
-        kind,
-        data: raw,
-        defaultMode: descriptor.defaultMode,
-      })
+      out.push({ componentKey: msg.id, kind, data: raw, defaultMode: descriptor.defaultMode })
       continue
     }
 
     if (relationship === 'fan-out') {
-      out.push(...fanOutAssistant(msg, raw))
+      const fanned = fanOutAssistant(msg, raw)
+      for (const c of fanned) {
+        if (c.kind === 'block-tool-use') {
+          const block = c.data as any
+          const result = toolResults.get(block.id)
+          if (result) {
+            c.data = { ...block, tool_result: result }
+            c.status = result.is_error ? 'error' : 'success'
+            if (result.is_error) c.defaultMode = 'compact'
+          } else {
+            c.status = 'running'
+          }
+        }
+        out.push(c)
+      }
       continue
     }
-
-    // 'mutate' / 'replace' — handled in later tasks.
   }
 
   return { components: out, sideChannel: side }
