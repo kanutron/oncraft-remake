@@ -16,12 +16,12 @@ const text = computed(() => props.data.text ?? '')
 <template>
   <div
     :data-mode="mode"
-    :class="mode === 'badge' ? 'inline-flex items-center gap-1 align-middle' : 'block'"
+    :class="mode === 'badge' ? 'inline-flex items-center mr-1 align-middle' : 'block my-1'"
   >
     <template v-if="mode === 'badge'">
       <UBadge color="neutral" variant="subtle" size="sm" class="cursor-pointer" @click="cycleMode()">
         <UIcon name="i-lucide-message-square" class="size-3" />
-        <span class="truncate max-w-[14ch]">{{ text }}</span>
+        <span class="text-xs truncate max-w-[14ch]">{{ text }}</span>
       </UBadge>
     </template>
     <template v-else-if="mode === 'compact'">

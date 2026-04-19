@@ -17,18 +17,18 @@ const isSigned = computed(() => !thinking.value && !!props.data.signature)
 <template>
   <div
     :data-mode="isSigned ? 'badge' : mode"
-    :class="isSigned || mode === 'badge' ? 'inline-flex items-center align-middle' : 'block my-1'"
+    :class="isSigned || mode === 'badge' ? 'inline-flex items-center mr-1 align-middle' : 'block my-1'"
   >
     <template v-if="isSigned">
-      <UBadge color="neutral" variant="subtle" size="sm">
+      <UBadge color="neutral" variant="soft" size="sm">
         <UIcon name="i-lucide-brain" class="size-3" />
-        <span class="text-xs">thinking (signed)</span>
+        <span class="text-xs">Thinking</span>
       </UBadge>
     </template>
     <template v-else-if="mode === 'badge'">
       <UBadge color="primary" variant="subtle" size="sm" class="cursor-pointer" @click="cycleMode()">
         <UIcon name="i-lucide-brain" class="size-3" />
-        <span class="text-xs">thinking</span>
+        <span class="text-xs">Thinking</span>
       </UBadge>
     </template>
     <template v-else>
