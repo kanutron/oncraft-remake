@@ -92,11 +92,11 @@ export class SessionService {
 				msg.type === "system" &&
 				(msg as Record<string, unknown>).subtype === "init"
 			) {
-				const initSessionId = (msg as Record<string, unknown>).sessionId as
+				const claudeSessionId = (msg as Record<string, unknown>).session_id as
 					| string
 					| undefined;
-				if (initSessionId && msg.sessionId) {
-					this.store.updateClaudeSessionId(msg.sessionId, initSessionId);
+				if (claudeSessionId && msg.sessionId) {
+					this.store.updateClaudeSessionId(msg.sessionId, claudeSessionId);
 				}
 			}
 		});
