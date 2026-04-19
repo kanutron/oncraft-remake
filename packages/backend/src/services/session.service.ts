@@ -177,6 +177,19 @@ export class SessionService {
 		this.store.updateSessionFields(id, fields);
 	}
 
+	updatePreferences(
+		id: string,
+		prefs: {
+			preferredModel?: string | null;
+			preferredEffort?: string | null;
+			preferredPermissionMode?: string | null;
+			thinkingMode?: "off" | "adaptive" | "fixed" | null;
+			thinkingBudget?: number | null;
+		},
+	): void {
+		this.store.updateSessionPreferences(id, prefs);
+	}
+
 	async send(
 		sessionId: string,
 		message: string,
