@@ -54,10 +54,11 @@ describe('useChatReducer — fan-out', () => {
       },
     })])
     const { components } = useChatReducer(src)
-    expect(components.value).toHaveLength(2)
-    expect(components.value[0].kind).toBe('block-text')
-    expect(components.value[1].kind).toBe('block-tool-use')
-    expect(components.value[1].componentKey).toBe('tool_a') // tool_use_id for correlation
+    expect(components.value).toHaveLength(3)
+    expect(components.value[0].kind).toBe('assistant-header')
+    expect(components.value[1].kind).toBe('block-text')
+    expect(components.value[2].kind).toBe('block-tool-use')
+    expect(components.value[2].componentKey).toBe('tool_a') // tool_use_id for correlation
   })
 
   it('falls back to index-based key for blocks with no id', () => {
@@ -66,7 +67,7 @@ describe('useChatReducer — fan-out', () => {
       message: { id: 'msg_2', content: [{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] },
     })])
     const { components } = useChatReducer(src)
-    expect(components.value.map(c => c.componentKey)).toEqual(['msg_2:0', 'msg_2:1'])
+    expect(components.value.map(c => c.componentKey)).toEqual(['msg_2:header', 'msg_2:0', 'msg_2:1'])
   })
 
   it('assigns defaults: text=full, thinking=compact, tool_use=badge', () => {
@@ -82,7 +83,15 @@ describe('useChatReducer — fan-out', () => {
       },
     })])
     const { components } = useChatReducer(src)
-    expect(components.value.map(c => c.defaultMode)).toEqual(['full', 'compact', 'badge'])
+    expect(components.value.map(c => c.defaultMode)).toEqual(['compact', 'full', 'compact', 'badge'])
+  })
+
+  it('emits an assistant-header before each assistant fan-out', () => {
+    const src = ref([makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'text', text: 'hi' }] } })])
+    const { components } = useChatReducer(src)
+    expect(components.value.map(c => c.kind)).toEqual(['assistant-header', 'block-text'])
+    expect(components.value[0].componentKey).toBe('m1:header')
+    expect(components.value[0].defaultMode).toBe('compact')
   })
 })
 
@@ -99,8 +108,8 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value).toHaveLength(1) // user message with only tool_result is not a separate spawn
-    const tool = components.value[0]
+    expect(components.value).toHaveLength(2) // header + tool_use; user message with only tool_result is not a separate spawn
+    const tool = components.value[1]
     expect(tool.kind).toBe('block-tool-use')
     expect((tool.data as any).tool_result).toMatchObject({ content: 'output', is_error: false })
     expect(tool.status).toBe('success')
@@ -112,7 +121,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: 'boom', is_error: true }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[0].status).toBe('error')
+    expect(components.value[1].status).toBe('error')
   })
 
   it('flips defaultMode from badge to compact for failed tools', () => {
@@ -121,7 +130,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't3', content: 'x', is_error: true }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[0].defaultMode).toBe('compact')
+    expect(components.value[1].defaultMode).toBe('compact')
   })
 
   it('tool_use without result shows status=running', () => {
@@ -129,7 +138,7 @@ describe('useChatReducer — tool_use ↔ tool_result pairing', () => {
       makeMessage({ type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't4', name: 'Read', input: {} }] } }),
     ])
     const { components } = useChatReducer(src)
-    expect(components.value[0].status).toBe('running')
+    expect(components.value[1].status).toBe('running')
   })
 })
 

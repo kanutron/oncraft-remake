@@ -15,6 +15,7 @@ export type Relationship =
 /** Our internal component kind — drives the component resolver. */
 export type ChatEventKind =
   | 'assistant'
+  | 'assistant-header'
   | 'user'
   | 'user-replay'
   | 'block-text'

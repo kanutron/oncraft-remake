@@ -17,7 +17,13 @@ const BLOCK_KIND_MAP: Record<string, { kind: ChatEventKind; defaultMode: 'badge'
 function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
   const messageId = raw?.message?.id ?? msg.id
   const blocks: Block[] = raw?.message?.content ?? []
-  return blocks.map((block, i) => {
+  const header: ChatStreamComponent = {
+    componentKey: `${messageId}:header`,
+    kind: 'assistant-header' as const,
+    data: { messageId, model: raw?.message?.model, usage: raw?.message?.usage },
+    defaultMode: 'compact' as const,
+  }
+  const blockComps = blocks.map((block, i) => {
     const mapping = BLOCK_KIND_MAP[block.type]
     const dataWithParent = { ...block, _parentMessageId: messageId }
     const componentKey = block.id ?? `${messageId}:${i}`
@@ -26,6 +32,7 @@ function fanOutAssistant(msg: ChatMessage, raw: any): ChatStreamComponent[] {
     }
     return { componentKey, kind: mapping.kind, data: dataWithParent, defaultMode: mapping.defaultMode }
   })
+  return [header, ...blockComps]
 }
 
 export function useChatReducer(source: Ref<ChatMessage[]>) {
